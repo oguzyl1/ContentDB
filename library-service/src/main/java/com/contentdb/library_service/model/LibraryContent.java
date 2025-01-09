@@ -15,7 +15,7 @@ public class LibraryContent {
     @JoinColumn(name = "library_id", nullable = false)
     private Library library;
 
-    @Column(name = "content_id", nullable = false)
+    @Column(nullable = false)
     private String contentId;
 
     public LibraryContent(String id, Library library, String contentId) {

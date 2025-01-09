@@ -7,6 +7,7 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="library-service" />
+        <module name="authentication-service" />
         <module name="content-service" />
         <module name="gateway" />
         <module name="euraka-server" />
@@ -15,6 +16,7 @@
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="authentication-service" options="-parameters" />
       <module name="content-service" options="-parameters" />
       <module name="euraka-server" options="-parameters" />
       <module name="gateway" options="-parameters" />

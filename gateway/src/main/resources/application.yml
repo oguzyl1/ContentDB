@@ -16,6 +16,10 @@ spring:
           uri: lb://library-service
           predicates:
             - Path=/v1/libraryContent/**
+        - id:
+          uri: lb://authentication-service
+          predicates:
+            - Path=/v1/auth/**
       discovery:
         locator:
           enabled: true

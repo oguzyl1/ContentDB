@@ -7,6 +7,7 @@ import java.util.Set;
 
 public class UserDto {
 
+    private String id;
     private String name;
     private String lastName;
     private String email;
@@ -15,6 +16,7 @@ public class UserDto {
 
     public static UserDto convertToUserDto(User user) {
         return new UserDto(
+                user.getId(),
                 user.getName(),
                 user.getLastName(),
                 user.getEmail(),
@@ -26,11 +28,19 @@ public class UserDto {
     public UserDto() {
     }
 
-    public UserDto(String name, String lastName, String email, String username,Set<Role> authorities) {
+    public UserDto(String id,String name, String lastName, String email, String username,Set<Role> authorities) {
         this.name = name;
         this.lastName = lastName;
         this.email = email;
         this.username = username;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
     }
 
     public String getName() {

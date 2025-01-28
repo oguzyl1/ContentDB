@@ -16,15 +16,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 @Service
 public class LibraryContentService {
     private final LibraryContentRepository libraryContentRepository;
-    private final LibraryRepository libraryRepository; // Veritabanından Library almak için ekledik.
+    private final LibraryRepository libraryRepository;
     private final ContentServiceClient contentServiceClient;
 
     public LibraryContentService(LibraryContentRepository libraryContentRepository, LibraryRepository libraryRepository, ContentServiceClient contentServiceClient) {

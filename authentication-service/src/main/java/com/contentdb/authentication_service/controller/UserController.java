@@ -2,16 +2,14 @@ package com.contentdb.authentication_service.controller;
 
 
 import com.contentdb.authentication_service.dto.*;
-import com.contentdb.authentication_service.service.JwtService;
 import com.contentdb.authentication_service.service.UserService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("v1/auth")
 public class UserController {
 
     private final UserService userService;

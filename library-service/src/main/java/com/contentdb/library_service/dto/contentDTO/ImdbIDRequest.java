@@ -1,5 +1,5 @@
 // içeriğin imdbID'sini almak için sınıf
-package com.contentdb.library_service.dto;
+package com.contentdb.library_service.dto.contentDTO;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

@@ -38,4 +38,48 @@ public class GlobalExceptionHandler {
         ExceptionMessage exceptionMessage = e.getExceptionMessage();
         return new ResponseEntity<>(exceptionMessage, HttpStatus.BAD_REQUEST);
     }
+
+    @ExceptionHandler(InvalidTokenException.class)
+    public ResponseEntity<ExceptionMessage> handleInvalidTokenException(InvalidTokenException e) {
+        ExceptionMessage exceptionMessage = e.getExceptionMessage();
+        return new ResponseEntity<>(exceptionMessage, HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(EmailNotFoundException.class)
+    public ResponseEntity<ExceptionMessage> handleEmailNotFoundException(EmailNotFoundException e) {
+        ExceptionMessage exceptionMessage = e.getExceptionMessage();
+        return new ResponseEntity<>(exceptionMessage, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(TokenExpiredException.class)
+    public ResponseEntity<ExceptionMessage> handleTokenExpiredException(TokenExpiredException e) {
+        ExceptionMessage exceptionMessage = e.getExceptionMessage();
+        return new ResponseEntity<>(exceptionMessage, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(PasswordIsNotSameException.class)
+    public ResponseEntity<ExceptionMessage> handlePasswordIsNotSameException(PasswordIsNotSameException e) {
+        ExceptionMessage exceptionMessage = e.getExceptionMessage();
+        return new ResponseEntity<>(exceptionMessage, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(UserDeletedException.class)
+    public ResponseEntity<ExceptionMessage> handleUserDeletedException(UserDeletedException e) {
+        ExceptionMessage exceptionMessage = e.getExceptionMessage();
+        return new ResponseEntity<>(exceptionMessage, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(AuthenticationFailedException.class)
+    public ResponseEntity<ExceptionMessage> handleAuthenticationFailedException(AuthenticationFailedException e) {
+        ExceptionMessage exceptionMessage = e.getExceptionMessage();
+        return new ResponseEntity<>(exceptionMessage, HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(UnauthorizedAccessException.class)
+    public ResponseEntity<ExceptionMessage> handleUnauthorizedAccessException(UnauthorizedAccessException e) {
+        ExceptionMessage exceptionMessage = e.getExceptionMessage();
+        return new ResponseEntity<>(exceptionMessage, HttpStatus.UNAUTHORIZED);
+    }
+
 }
+

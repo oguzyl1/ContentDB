@@ -22,18 +22,29 @@ public class Library {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Column(name = "user_id", nullable = false)
+    private String userId;
 
     public Library(String libraryName) {
         this.libraryName = libraryName;
     }
 
-    public Library(String id, String libraryName, LocalDateTime createdAt) {
+    public Library(String id, String libraryName, LocalDateTime createdAt, String userId) {
         this.id = id;
         this.libraryName = libraryName;
         this.createdAt = createdAt;
+        this.userId = userId;
     }
 
     public Library() {
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
     public String getId() {
@@ -59,6 +70,5 @@ public class Library {
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
-
 
 }

@@ -2,16 +2,17 @@ package com.contentdb.authentication_service.service;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
-import java.security.Key;
+import javax.crypto.SecretKey;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -19,53 +20,102 @@ public class JwtService {
 
     @Value("${jwt_private_key}")
     private String SECRET;
+    private static final long ACCESS_TOKEN_VALIDITY  = 15;
+    private static final long REFRESH_TOKEN_VALIDITY = 7*24*60;
 
-    public String generateToken(String username) {
+    /**
+     * Access token oluşturur.
+     */
+    public String generateToken(String username, String userId, List<String> roles) {
         Map<String, Object> claims = new HashMap<>();
-        return createToken(claims, username);
+        claims.put("userId", userId);
+        claims.put("roles", roles);  // Kullanıcı rollerini token'a ekliyoruz.
+        return createToken(claims, username, ACCESS_TOKEN_VALIDITY);
+    }
+
+    public List<String> extractRoles(String token) {
+        Claims claims = extractAllClaims(token);
+        return claims.get("roles", List.class);
     }
 
 
+    /**
+     * Refresh token oluşturur.
+     */
+    public String generateRefreshToken(String username, String userId) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", userId);
+        claims.put("type", "refresh");
+        return createToken(claims, username, REFRESH_TOKEN_VALIDITY);
+    }
+
+    /**
+     * Verilen token’ın geçerliliğini kontrol eder.
+     */
     public Boolean validateToken(String token, UserDetails userDetails) {
         String username = extractUser(token);
-        Date expirationDate = extractExpiration(token);
-        return userDetails.getUsername().equals(username) && !expirationDate.before(new Date());
+        Instant expirationInstant = extractExpiration(token).toInstant();
+        return userDetails.getUsername().equals(username) && expirationInstant.isAfter(Instant.now());
     }
 
-    private Date extractExpiration(String token) {
-        Claims claims = Jwts
-                .parser()
-                .setSigningKey(getSignKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-        return claims.getExpiration();
+    /**
+     * Refresh token’ın geçerliliğini kontrol eder.
+     */
+    public Boolean validateRefreshToken(String token) {
+        Claims claims = extractAllClaims(token);
+        String type = claims.get("type", String.class);
+        Date expiration = claims.getExpiration();
+        return "refresh".equals(type) && expiration.after(new Date());
     }
 
+    /**
+     * Token’dan kullanıcı adını (subject) çeker.
+     */
     public String extractUser(String token) {
-        Claims claims = Jwts
-                .parser()
-                .setSigningKey(getSignKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+        Claims claims = extractAllClaims(token);
         return claims.getSubject();
     }
 
-    private String createToken(Map<String, Object> claims, String username) {
+    /**
+     * Token’dan userId bilgisini çeker.
+     */
+    public String extractUserId(String token) {
+        Claims claims = extractAllClaims(token);
+        return claims.get("userId", String.class);
+    }
+
+    /**
+     * Token’ın son kullanma tarihini döner.
+     */
+    private Date extractExpiration(String token) {
+        Claims claims = extractAllClaims(token);
+        return claims.getExpiration();
+    }
+
+    /**
+     * Belirtilen claim’ler ve kullanıcı için token üretir.
+     */
+    private String createToken(Map<String, Object> claims, String username,long validityMinutes) {
+        Instant now  = Instant.now();
         return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(username)
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 15 ))
-                .signWith(getSignKey(), SignatureAlgorithm.HS256)
+                .claims(claims)
+                .subject(username)
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plus(validityMinutes,ChronoUnit.MINUTES)))
+                .signWith(getSignKey())
                 .compact();
     }
 
-    private Key getSignKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(SECRET);
-        return Keys.hmacShaKeyFor(keyBytes);
+    private SecretKey getSignKey() {
+        return Keys.hmacShaKeyFor(SECRET.getBytes());
     }
 
+    private Claims extractAllClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(getSignKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
 
 }

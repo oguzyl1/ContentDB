@@ -3,7 +3,7 @@ package com.contentdb.content_service.controller;
 import com.contentdb.content_service.model.DetailsRequest;
 import com.contentdb.content_service.model.ImdbIDRequest;
 import com.contentdb.content_service.model.PosterRequest;
-import com.contentdb.content_service.model.SearchRequest;
+import com.contentdb.content_service.model.SearchResponse;
 import com.contentdb.content_service.service.ContentService;
 import jakarta.validation.constraints.NotEmpty;
 import org.springframework.http.ResponseEntity;
@@ -12,9 +12,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import reactor.core.publisher.Mono;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/v1/content")
@@ -43,8 +40,8 @@ public class ContentController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<SearchRequest>> searchContents(@RequestParam @NotEmpty String title) {
-        return ResponseEntity.ok(contentService.searchContentsByTitle(title));
+    public ResponseEntity<SearchResponse> searchContents(@RequestParam @NotEmpty String title) {
+        return ResponseEntity.ok(contentService.searchContents(title));
     }
 
 }

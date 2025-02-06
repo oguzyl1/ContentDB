@@ -2,7 +2,9 @@ package com.contentdb.content_service.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class PosterRequest {
+import java.io.Serializable;
+
+public class PosterRequest implements Serializable {
 
     @JsonProperty("Poster")
     private String poster;

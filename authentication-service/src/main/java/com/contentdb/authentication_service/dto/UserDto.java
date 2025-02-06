@@ -29,10 +29,12 @@ public class UserDto {
     }
 
     public UserDto(String id,String name, String lastName, String email, String username,Set<Role> authorities) {
+        this.id = id;
         this.name = name;
         this.lastName = lastName;
         this.email = email;
         this.username = username;
+        this.authorities = authorities;
     }
 
     public String getId() {

@@ -4,50 +4,72 @@ import jakarta.persistence.*;
 import org.hibernate.annotations.GenericGenerator;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import javax.validation.constraints.Pattern;
+import javax.validation.constraints.Email;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.Size;
+import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 @Entity
-@Table(name = "users")
+@Table(name = "users", uniqueConstraints = {@UniqueConstraint(columnNames = "username"), @UniqueConstraint(columnNames = "email")})
 public class User implements UserDetails {
-
 
     @Id
     @GeneratedValue(generator = "UUID")
     @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
     private String id;
 
+    @NotBlank(message = "İsim boş bırakılamaz")
+    @Size(min = 2, max = 20, message = "isim 2 ila 20 karakter arasında olmalıdır!")
+    @Column(nullable = false)
     private String name;
+
+    @NotBlank(message = "Soyisim boş bırakılamaz")
+    @Size(min = 2, max = 20, message = "Soyisim 2 ile 50 karakter arasında olmalıdır")
+    @Column(name = "last_name", nullable = false)
     private String lastName;
+
+    @Email(message = "Geçersiz e-posta formatı")
+    @NotBlank(message = "E-posta boş bırakılamaz")
+    @Column(nullable = false)
     private String email;
+
+    @NotBlank(message = "Kullanıcı adı boş bırakılamaz")
+    @Size(min = 3, max = 15, message = "Kullanıcı adı 3 ile 15 karakter arasında olmalıdır")
+    @Column(nullable = false)
     private String username;
+
+    @NotBlank(message = "Şifre boş bırakılamaz")
+    @Size(min = 8, max = 50, message = "Şifre en az 8 karakter olmalıdır")
+    @Column(nullable = false)
     private String password;
 
-    private boolean accountNonExpired;
-    private boolean isEnabled;
-    private boolean accountNonLocked;
-    private boolean credentialsNonExpired;
-
+    @NotBlank(message = "Yetki boş bırakılamaz")
     @ElementCollection(targetClass = Role.class, fetch = FetchType.EAGER)
     @JoinTable(name = "authorities", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "role", nullable = false)
     @Enumerated(EnumType.STRING)
-    private Set<Role> authorities;
+    private Set<Role> authorities = new HashSet<>();
+
+    private boolean accountNonExpired = true;
+    private boolean isEnabled = true;
+    private boolean accountNonLocked = true;
+    private boolean credentialsNonExpired = true;
+
+    @Column(nullable = false)
+    private boolean isDeleted = false;
+
+    @Column(name = "refresh_token",length = 500)
+    private String resetToken;
+
+    private LocalDateTime resetTokenExpiry;
 
     public User() {
     }
 
-    public User(String id,
-                String name,
-                String lastName,
-                String email,
-                String username,
-                String password,
-                boolean accountNonExpired,
-                boolean isEnabled,
-                boolean accountNonLocked,
-                boolean credentialsNonExpired,
-                Set<Role> authorities) {
+    public User(String id, String name, String lastName, String email, String username, String password, boolean accountNonExpired, boolean isEnabled, boolean accountNonLocked, boolean credentialsNonExpired, Set<Role> authorities) {
         this.id = id;
         this.name = name;
         this.lastName = lastName;
@@ -58,7 +80,7 @@ public class User implements UserDetails {
         this.isEnabled = isEnabled;
         this.accountNonLocked = accountNonLocked;
         this.credentialsNonExpired = credentialsNonExpired;
-        this.authorities = authorities;
+        this.authorities = authorities != null ? authorities : new HashSet<>();
     }
 
     public String getId() {
@@ -149,13 +171,54 @@ public class User implements UserDetails {
 
     @Override
     public Set<Role> getAuthorities() {
-        return authorities;
+        return new HashSet<>(authorities);
     }
 
     public void setAuthorities(Set<Role> authorities) {
-        this.authorities = authorities;
+        this.authorities = authorities != null ? new HashSet<>(authorities) : new HashSet<>();
     }
 
+    public boolean isDeleted() {
+        return isDeleted;
+    }
+
+    public void setDeleted(boolean deleted) {
+        isDeleted = deleted;
+    }
+
+    public String getResetToken() {
+        return resetToken;
+    }
+
+    public void setResetToken(String resetToken) {
+        this.resetToken = resetToken;
+    }
+
+    public LocalDateTime getResetTokenExpiry() {
+        return resetTokenExpiry;
+    }
+
+    public void setResetTokenExpiry(LocalDateTime resetTokenExpiry) {
+        this.resetTokenExpiry = resetTokenExpiry;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        User user = (User) o;
+        return Objects.equals(id, user.id) && Objects.equals(username, user.username) && Objects.equals(email, user.email);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, username, email);
+    }
+
+    @Override
+    public String toString() {
+        return "User{" + "id='" + id + '\'' + ", name='" + name + '\'' + ", lastName='" + lastName + '\'' + ", email='" + email + '\'' + ", username='" + username + '\'' + "}";
+    }
 
     public static class Builder {
         private String id;
@@ -164,11 +227,12 @@ public class User implements UserDetails {
         private String email;
         private String username;
         private String password;
-        private boolean accountNonExpired;
-        private boolean isEnabled;
-        private boolean accountNonLocked;
-        private boolean credentialsNonExpired;
-        private Set<Role> authorities;
+        private Set<Role> authorities = new HashSet<>();
+        private boolean accountNonExpired = true;
+        private boolean isEnabled = true;
+        private boolean accountNonLocked = true;
+        private boolean credentialsNonExpired = true;
+
 
         public Builder id(String id) {
             this.id = id;
@@ -221,7 +285,7 @@ public class User implements UserDetails {
         }
 
         public Builder authorities(Set<Role> authorities) {
-            this.authorities = authorities;
+            this.authorities = authorities != null ? new HashSet<>(authorities) : new HashSet<>();
             return this;
         }
 

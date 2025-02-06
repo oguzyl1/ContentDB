@@ -1,4 +1,4 @@
-package com.contentdb.library_service.dto;
+package com.contentdb.library_service.dto.libraryDTO;
 
 import com.contentdb.library_service.model.Library;
 
@@ -6,6 +6,7 @@ import com.contentdb.library_service.model.Library;
 public class LibraryDto {
 
     private String name;
+    private String userId;
 
     public static LibraryDto convertToDto(Library library) {
         return new LibraryDto(

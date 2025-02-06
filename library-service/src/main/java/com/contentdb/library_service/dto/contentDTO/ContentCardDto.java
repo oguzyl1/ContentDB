@@ -1,4 +1,4 @@
-package com.contentdb.library_service.dto;
+package com.contentdb.library_service.dto.contentDTO;
 
 import java.util.List;
 

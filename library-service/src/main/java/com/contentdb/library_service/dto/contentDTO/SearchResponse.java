@@ -1,4 +1,4 @@
-package com.contentdb.content_service.model;
+package com.contentdb.library_service.dto.contentDTO;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

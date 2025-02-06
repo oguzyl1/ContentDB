@@ -1,10 +1,10 @@
-package com.contentdb.library_service.dto;
+package com.contentdb.library_service.dto.libraryDTO;
 
 import com.contentdb.library_service.model.LibraryContent;
 
 public class LibraryContentDto {
 
-    private String content_id;
+    private String contentId;
 
     public static LibraryContentDto convertToLibraryContentDto(LibraryContent libraryContent) {
         return new LibraryContentDto(
@@ -12,19 +12,19 @@ public class LibraryContentDto {
         );
     }
 
-    public LibraryContentDto(String content_id) {
-        this.content_id = content_id;
+    public LibraryContentDto(String contentId) {
+        this.contentId = contentId;
     }
 
     public LibraryContentDto() {
 
     }
 
-    public String getContent_id() {
-        return content_id;
+    public String getContentId() {
+        return contentId;
     }
 
-    public void setContent_id(String content_id) {
-        this.content_id = content_id;
+    public void setContentId(String contentId) {
+        this.contentId = contentId;
     }
 }

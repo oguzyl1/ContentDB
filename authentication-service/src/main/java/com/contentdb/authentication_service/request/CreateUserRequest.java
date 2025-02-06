@@ -1,37 +1,18 @@
-package com.contentdb.authentication_service.dto;
+package com.contentdb.authentication_service.request;
 
 import com.contentdb.authentication_service.model.Role;
 
-import javax.validation.constraints.Email;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Size;
 import java.util.Set;
 
 public record CreateUserRequest(
 
-        @NotBlank(message = "İsim boş olamaz!")
-        @Size(min = 2,max = 15,message = "isim 2 ila 15 karakter arasında olmalıdır!")
         String name,
-
-        @NotBlank(message = "Soyisim boş olamaz!")
-        @Size(min = 2, max = 50, message = "Soyisim 2 ile 50 karakter arasında olmalıdır")
         String lastName,
-
-        @NotBlank(message = "Email boş olamaz!")
-        @Email(message = "Geçerli bir email adresi giriniz")
         String email,
-
-        @NotBlank(message = "Kullanıcı adı boş olamaz")
-        @Size(min = 4, max = 20, message = "Kullanıcı adı 4 ile 20 karakter arasında olmalıdır")
         String username,
-
-        @NotBlank(message = "Şifre boş olamaz!")
-        @Size(min = 8, max = 25 ,message = "Şifre en az 8 karakter olmalıdır")
         String password,
-
-        @NotBlank(message = "Yetkiler boş olamaz!")
         Set<Role> authorities
-        ) {
+) {
 
     private static class CreateUserRequestBuilder {
         private String name;

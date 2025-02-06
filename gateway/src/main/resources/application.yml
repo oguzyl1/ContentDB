@@ -11,15 +11,15 @@ spring:
         - id: library-service
           uri: lb://library-service
           predicates:
-            - Path=/v1/library/**
+            - Path=/api/v1/library/**
         - id: library-service
           uri: lb://library-service
           predicates:
-            - Path=/v1/libraryContent/**
+            - Path=/api/v1/library/{libraryName}/contents/**
         - id:
           uri: lb://authentication-service
           predicates:
-            - Path=/v1/auth/**
+            - Path=/api/v1/**
       discovery:
         locator:
           enabled: true
@@ -40,3 +40,5 @@ management:
     web:
       exposure:
         include: "*"
+
+jwt_private_key: "MIICXAIBAAKBgQDBMFAL8jtqkdEkdPBAtp95rxsrttmKTjQ/vo7z0GJD6lNTy6bNiPBiPTKBH6rR5eT7/0DS5RtZQG9VwpOOnFf3jBCBaHRD+PByny1dVjI/9ukM9B+FEuHNH0nE/qdRuA+nFgIKgNvDX65uevgi2N3R5laTpa+wDK49XbZirnZVgwIDAQABAoGAXIEawy2hH71kzLUl2YbYw/aB5yOt9NjPkfpYDw0oEGcisUwhuecpW5D8HvIf5FPVmoi17IYB23HMHd+GslHQmIW9E5SS3+h6qYmfIEDPuhAVKzmn0hrozQR0Bu8gD174PxW7P4z0U3iFitIQQmczzB/G3usGD79lJa2yMkfUcckCQQDuff8nkjHA4ritq666DITTHPlDiIeBr25q32OSwIOdWfyTKYrrwrfBUNO57ExyYBAqrVYlmqakucs64VpnVQFPAkEAz17spn4zDR1MqL3hJ/0U6wJCLrvIvUxxYDoGrla54YKfS1hvVJZBiv2iIcfjKd506hyV/SZM7sFYQsNH+UhTjQJBALWLdA/LWdRawfpyFi/KF9Ic3CJsa7pssMDqDAJKSeYd+gaMORP+xaKCxKljF055kdTq3gkCEJiUVgAcS5UdQEECQEoKsqSf2sqL85sscQA+NQHURJ07H2m3qaOaFFibTrNeWFImuVmSbMSb2xAEtu90JnqQyl0hF8cH8eOkpkYztOECQBWvv8J9QCPsdH0YKvxSWNwL3G9F/dGHwEu/0RxyIqKNlYDRzq5zKn2p+XQANMbcuSe3tnEPH9tJ3TGLBygZPrI="

@@ -2,7 +2,9 @@ package com.contentdb.content_service.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class DetailsRequest {
+import java.io.Serializable;
+
+public class DetailsRequest implements Serializable {
 
     @JsonProperty("Title")
     private String title;

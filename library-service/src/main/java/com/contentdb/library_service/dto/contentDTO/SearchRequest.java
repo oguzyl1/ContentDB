@@ -1,9 +1,8 @@
-package com.contentdb.content_service.model;
+package com.contentdb.library_service.dto.contentDTO;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.Serializable;
-import java.util.List;
 
 public class SearchRequest implements Serializable {
     @JsonProperty("Title")

@@ -61,26 +61,132 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private boolean isDeleted = false;
 
-    @Column(name = "refresh_token",length = 500)
-    private String resetToken;
-
-    private LocalDateTime resetTokenExpiry;
+    private LocalDateTime lastLoginTime;
+    private LocalDateTime createdAt;
+    private LocalDateTime deletedAt;
+    private LocalDateTime passwordChangedAt;
+    private LocalDateTime resetTokenCreatedAt;
 
     public User() {
     }
 
-    public User(String id, String name, String lastName, String email, String username, String password, boolean accountNonExpired, boolean isEnabled, boolean accountNonLocked, boolean credentialsNonExpired, Set<Role> authorities) {
+    public User(String id, String name, String lastName, String email, String username, String password, Set<Role> authorities, boolean accountNonExpired, boolean isEnabled, boolean accountNonLocked, boolean credentialsNonExpired, boolean isDeleted, LocalDateTime lastLoginTime, LocalDateTime createdAt, LocalDateTime deletedAt, LocalDateTime passwordChangedAt, LocalDateTime resetTokenCreatedAt) {
         this.id = id;
         this.name = name;
         this.lastName = lastName;
         this.email = email;
         this.username = username;
         this.password = password;
+        this.authorities = authorities;
         this.accountNonExpired = accountNonExpired;
         this.isEnabled = isEnabled;
         this.accountNonLocked = accountNonLocked;
         this.credentialsNonExpired = credentialsNonExpired;
-        this.authorities = authorities != null ? authorities : new HashSet<>();
+        this.isDeleted = isDeleted;
+        this.lastLoginTime = lastLoginTime;
+        this.createdAt = createdAt;
+        this.deletedAt = deletedAt;
+        this.passwordChangedAt = passwordChangedAt;
+        this.resetTokenCreatedAt = resetTokenCreatedAt;
+    }
+
+    @Override
+    public String getUsername() {
+        return username;
+    }
+
+    @Override
+    public String getPassword() {
+        return password;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return accountNonExpired;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return isEnabled;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return accountNonLocked;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return credentialsNonExpired;
+    }
+
+    @Override
+    public Set<Role> getAuthorities() {
+        return new HashSet<>(authorities);
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public void setAccountNonExpired(boolean accountNonExpired) {
+        this.accountNonExpired = accountNonExpired;
+    }
+
+    public void setEnabled(boolean enabled) {
+        isEnabled = enabled;
+    }
+
+    public void setAccountNonLocked(boolean accountNonLocked) {
+        this.accountNonLocked = accountNonLocked;
+    }
+
+    public void setCredentialsNonExpired(boolean credentialsNonExpired) {
+        this.credentialsNonExpired = credentialsNonExpired;
+    }
+
+    public LocalDateTime getResetTokenCreatedAt() {
+        return resetTokenCreatedAt;
+    }
+
+    public void setResetTokenCreatedAt(LocalDateTime resetTokenCreatedAt) {
+        this.resetTokenCreatedAt = resetTokenCreatedAt;
+    }
+
+    public LocalDateTime getPasswordChangedAt() {
+        return passwordChangedAt;
+    }
+
+    public void setPasswordChangedAt(LocalDateTime passwordChangedAt) {
+        this.passwordChangedAt = passwordChangedAt;
+    }
+
+    public LocalDateTime getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt(LocalDateTime deletedAt) {
+        this.deletedAt = deletedAt;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getLastLoginTime() {
+        return lastLoginTime;
+    }
+
+    public void setLastLoginTime(LocalDateTime lastLoginTime) {
+        this.lastLoginTime = lastLoginTime;
     }
 
     public String getId() {
@@ -115,65 +221,6 @@ public class User implements UserDetails {
         this.email = email;
     }
 
-    @Override
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    @Override
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    @Override
-    public boolean isAccountNonExpired() {
-        return accountNonExpired;
-    }
-
-    public void setAccountNonExpired(boolean accountNonExpired) {
-        this.accountNonExpired = accountNonExpired;
-    }
-
-    @Override
-    public boolean isEnabled() {
-        return isEnabled;
-    }
-
-    public void setEnabled(boolean enabled) {
-        isEnabled = enabled;
-    }
-
-    @Override
-    public boolean isAccountNonLocked() {
-        return accountNonLocked;
-    }
-
-    public void setAccountNonLocked(boolean accountNonLocked) {
-        this.accountNonLocked = accountNonLocked;
-    }
-
-    @Override
-    public boolean isCredentialsNonExpired() {
-        return credentialsNonExpired;
-    }
-
-    public void setCredentialsNonExpired(boolean credentialsNonExpired) {
-        this.credentialsNonExpired = credentialsNonExpired;
-    }
-
-    @Override
-    public Set<Role> getAuthorities() {
-        return new HashSet<>(authorities);
-    }
-
     public void setAuthorities(Set<Role> authorities) {
         this.authorities = authorities != null ? new HashSet<>(authorities) : new HashSet<>();
     }
@@ -184,22 +231,6 @@ public class User implements UserDetails {
 
     public void setDeleted(boolean deleted) {
         isDeleted = deleted;
-    }
-
-    public String getResetToken() {
-        return resetToken;
-    }
-
-    public void setResetToken(String resetToken) {
-        this.resetToken = resetToken;
-    }
-
-    public LocalDateTime getResetTokenExpiry() {
-        return resetTokenExpiry;
-    }
-
-    public void setResetTokenExpiry(LocalDateTime resetTokenExpiry) {
-        this.resetTokenExpiry = resetTokenExpiry;
     }
 
     @Override

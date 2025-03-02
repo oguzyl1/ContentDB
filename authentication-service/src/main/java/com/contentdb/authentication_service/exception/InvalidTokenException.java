@@ -1,19 +1,10 @@
 package com.contentdb.authentication_service.exception;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
 
-@ResponseStatus(value = HttpStatus.UNAUTHORIZED)
-public class InvalidTokenException extends RuntimeException {
-    private final ExceptionMessage exceptionMessage;
+public class InvalidTokenException extends BaseException {
 
-    public InvalidTokenException(ExceptionMessage exceptionMessage) {
-        super(exceptionMessage.errorMessage());
-        this.exceptionMessage = exceptionMessage;
+    public InvalidTokenException() {
+        super("Geçersiz veya süresi dolmuş", "UNAUTHORİZED", HttpStatus.UNAUTHORIZED);
     }
-
-    public ExceptionMessage getExceptionMessage() {
-        return exceptionMessage;
-    }
-
 }

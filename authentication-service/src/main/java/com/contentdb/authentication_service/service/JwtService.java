@@ -20,8 +20,8 @@ public class JwtService {
 
     @Value("${jwt_private_key}")
     private String SECRET;
-    private static final long ACCESS_TOKEN_VALIDITY  = 15;
-    private static final long REFRESH_TOKEN_VALIDITY = 7*24*60;
+    private static final long ACCESS_TOKEN_VALIDITY = 15;
+    private static final long REFRESH_TOKEN_VALIDITY = 7 * 24 * 60;
 
     /**
      * Access token oluşturur.
@@ -29,15 +29,22 @@ public class JwtService {
     public String generateToken(String username, String userId, List<String> roles) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
-        claims.put("roles", roles);  // Kullanıcı rollerini token'a ekliyoruz.
+        claims.put("roles", roles);
+        claims.put("username", username);
+        claims.put("type", "access");
         return createToken(claims, username, ACCESS_TOKEN_VALIDITY);
     }
 
-    public List<String> extractRoles(String token) {
-        Claims claims = extractAllClaims(token);
-        return claims.get("roles", List.class);
+    /**
+     * Şifre Sıfırlama işlem İçin Token Üretir
+     */
+    public String generateResetToken(String userId, String email) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", userId);
+        claims.put("email", email);
+        claims.put("type", "reset");
+        return createToken(claims, email, ACCESS_TOKEN_VALIDITY);
     }
-
 
     /**
      * Refresh token oluşturur.
@@ -49,6 +56,7 @@ public class JwtService {
         return createToken(claims, username, REFRESH_TOKEN_VALIDITY);
     }
 
+
     /**
      * Verilen token’ın geçerliliğini kontrol eder.
      */
@@ -57,6 +65,22 @@ public class JwtService {
         Instant expirationInstant = extractExpiration(token).toInstant();
         return userDetails.getUsername().equals(username) && expirationInstant.isAfter(Instant.now());
     }
+
+    /**
+     * Şifre sıfırlama token’ının geçerliliğini kontrol eder.
+     */
+    public Boolean validateResetToken(String token) {
+        Claims claims = extractAllClaims(token);
+        String type = claims.get("type", String.class);
+        Date expiration = claims.getExpiration();
+        return "reset".equals(type) && expiration.after(new Date());
+    }
+
+    public List<String> extractRoles(String token) {
+        Claims claims = extractAllClaims(token);
+        return claims.get("roles", List.class);
+    }
+
 
     /**
      * Refresh token’ın geçerliliğini kontrol eder.
@@ -68,6 +92,7 @@ public class JwtService {
         return "refresh".equals(type) && expiration.after(new Date());
     }
 
+
     /**
      * Token’dan kullanıcı adını (subject) çeker.
      */
@@ -76,12 +101,18 @@ public class JwtService {
         return claims.getSubject();
     }
 
+
     /**
      * Token’dan userId bilgisini çeker.
      */
     public String extractUserId(String token) {
         Claims claims = extractAllClaims(token);
         return claims.get("userId", String.class);
+    }
+
+    public String extractUsername(String token) {
+        Claims claims = extractAllClaims(token);
+        return claims.get("username", String.class);
     }
 
     /**
@@ -95,13 +126,13 @@ public class JwtService {
     /**
      * Belirtilen claim’ler ve kullanıcı için token üretir.
      */
-    private String createToken(Map<String, Object> claims, String username,long validityMinutes) {
-        Instant now  = Instant.now();
+    private String createToken(Map<String, Object> claims, String username, long validityMinutes) {
+        Instant now = Instant.now();
         return Jwts.builder()
                 .claims(claims)
                 .subject(username)
                 .issuedAt(Date.from(now))
-                .expiration(Date.from(now.plus(validityMinutes,ChronoUnit.MINUTES)))
+                .expiration(Date.from(now.plus(validityMinutes, ChronoUnit.MINUTES)))
                 .signWith(getSignKey())
                 .compact();
     }

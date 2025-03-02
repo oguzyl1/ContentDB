@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -15,13 +17,12 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     Optional<User> findByEmail(String email);
 
-    Optional<User> findByResetToken(String resetToken);
-
     @Query("SELECT u.id FROM User u WHERE u.username = :username")
     Optional<String> findUserIdByUsername(@Param("username") String username);
 
     @Query("SELECT COUNT(u) FROM User u JOIN u.authorities a WHERE a = 'ROLE_ADMIN'")
     long countAdmins();
 
+    List<User> findByLastLoginTimeBefore(LocalDateTime time);
 
 }

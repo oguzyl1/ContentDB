@@ -3,19 +3,10 @@ package com.contentdb.authentication_service.exception;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
-@ResponseStatus(value = HttpStatus.CONFLICT)
-public class UsernameAlreadyExistException extends RuntimeException {
 
-    private final ExceptionMessage exceptionMessage;
+public class UsernameAlreadyExistException extends BaseException {
 
-    public UsernameAlreadyExistException(ExceptionMessage exceptionMessage) {
-        super(exceptionMessage.errorMessage());
-        this.exceptionMessage = exceptionMessage;
+    public UsernameAlreadyExistException(String username) {
+        super("Bu kullanıcı adı kullanılmakta", "CONFLICT", HttpStatus.CONFLICT);
     }
-
-    public ExceptionMessage getExceptionMessage() {
-        return exceptionMessage;
-    }
-
-
 }

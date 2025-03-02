@@ -3,17 +3,19 @@ package com.contentdb.authentication_service.service;
 import com.contentdb.authentication_service.dto.UserDto;
 import com.contentdb.authentication_service.dto.UserListDto;
 import com.contentdb.authentication_service.exception.*;
+import com.contentdb.authentication_service.model.RefreshToken;
 import com.contentdb.authentication_service.model.Role;
 import com.contentdb.authentication_service.model.User;
+import com.contentdb.authentication_service.repository.RefreshTokenRepository;
 import com.contentdb.authentication_service.repository.UserRepository;
 import com.contentdb.authentication_service.request.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -23,10 +25,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Validated
@@ -34,6 +39,7 @@ import java.util.stream.Collectors;
 public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
@@ -41,9 +47,19 @@ public class UserService implements UserDetailsService {
 
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
+    private static final String ROLE_ADMIN = "ROLE_ADMIN";
+    private static final int REFRESH_TOKEN_EXPIRY_DAYS = 7;
+    private static final int MAX_FAILED_ATTEMPTS = 5;
+    private static final long LOCK_TIME_DURATION_MINUTES = 30;
 
-    public UserService(UserRepository userRepository, BCryptPasswordEncoder bCryptPasswordEncoder, AuthenticationManager authenticationManager, JwtService jwtService, EmailService emailService) {
+    // Rate limiting için
+    private final Map<String, Integer> loginAttemptCache = new ConcurrentHashMap<>();
+    private final Map<String, Instant> lockedAccounts = new ConcurrentHashMap<>();
+
+
+    public UserService(UserRepository userRepository, RefreshTokenRepository refreshTokenRepository, BCryptPasswordEncoder bCryptPasswordEncoder, AuthenticationManager authenticationManager, JwtService jwtService, EmailService emailService) {
         this.userRepository = userRepository;
+        this.refreshTokenRepository = refreshTokenRepository;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
@@ -52,143 +68,149 @@ public class UserService implements UserDetailsService {
 
 
     /**
-     * Kullanıcı girişi gerçekleştirir. Giriş başarılı ise access token oluşturur.
+     * Kullanıcı adı ile kullanıcıyı bularak getirir
      *
-     * @param loginRequest Kullanıcı adı ve şifresini içeren DTO.
-     * @return Oluşturulan access token.
+     * @param username the username identifying the user whose data is required.
+     * @return kullanıcıyı döner
      */
-    @Transactional
-    public String login(LoginRequest loginRequest) {
-
-        User user = userRepository.findByUsername(loginRequest.username()).orElseThrow(() -> new UserNameNotFoundException(
-                new ExceptionMessage(
-                        LocalDateTime.now().toString(),
-                        HttpStatus.NOT_FOUND.value(),
-                        "Not Found",
-                        "Bu isme Sahip kullanıcı bulunamadı: " + loginRequest.username(),
-                        "/authentication/login",
-                        "Aranan kullanıcı adı ile bir kayıt bulunamadı.Kullanıcı adı: " + loginRequest.username()
-                )
-        ));
-
-        if (user.isDeleted()) {
-            throw new UserDeletedException(new ExceptionMessage(
-                    LocalDateTime.now().toString(),
-                    HttpStatus.BAD_REQUEST.value(),
-                    "Bad request",
-                    "Bu isme Sahip kullanıcı bulunamadı: " + loginRequest.username(),
-                    "/authentication/login",
-                    "Aranan kullanıcı adı ile bir kayıt bulunamadı.Kullanıcı adı: " + loginRequest.username()
-            ));
-        }
-
-
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.username(), loginRequest.password())
-        );
-
-        if (authentication.isAuthenticated()) {
-
-            List<String> roles = user.getAuthorities().stream()
-                    .map(Role::getValue)
-                    .toList();
-
-            return jwtService.generateToken(loginRequest.username(),
-                    getUserIdByUsername(loginRequest.username()), roles);
-        }
-
-        throw new AuthenticationFailedException(new ExceptionMessage(
-                LocalDateTime.now().toString(),
-                HttpStatus.UNAUTHORIZED.value(),
-                "Unauthorized",
-                "Kimlik doğrulama işlemi başarısız oldu.",
-                "/authentication/login",
-                "Kimlik doğrulama işlemi başarısız oldu. Kullanıcı adı veya şifreyi kontrol ediniz."
-        ));
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        Optional<User> user = userRepository.findByUsername(username);
+        return user.orElseThrow(() -> new UserNotFoundException(username));
     }
 
 
     /**
-     * Kullanıcı bilgilerini günceller.
+     * Kullanıcıyı ID'ye göre bulur ve döndürür
+     *
+     * @param userId Kullanıcının ID'si
+     * @return Bulunan kullanıcının DTO hali
+     * @throws UserNotFoundException Kullanıcı bulunamazsa
+     */
+    @Transactional(readOnly = true)
+    public UserDto getUserById(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("ID: " + userId));
+
+        if (user.isDeleted()) {
+            throw new UserNotFoundException("ID: " + userId);
+        }
+
+        return UserDto.convertToUserDto(user);
+    }
+
+
+    /**
+     * Kullanıcı girişi gerçekleştirir. Giriş başarılı ise access token oluşturur.
+     *
+     * @param loginRequest Kullanıcı adı ve şifresini içeren DTO.
+     * @return Oluşturulan access ve refresh token.
+     */
+    @Transactional
+    public TokenResponse login(LoginRequest loginRequest) {
+
+        if (isAccountLocked(loginRequest.username())) {
+            throw new ThisAccountLockedException(LOCK_TIME_DURATION_MINUTES);
+        }
+
+        User user = findUserByUsername(loginRequest.username());
+
+        try {
+            Authentication authentication = authenticationManager.
+                    authenticate(
+                            new UsernamePasswordAuthenticationToken(
+                                    loginRequest.username(),
+                                    loginRequest.password())
+                    );
+
+            if (authentication.isAuthenticated()) {
+                resetFailedAttempts(loginRequest.username());
+
+                List<String> roles = user.getAuthorities().stream()
+                        .map(Role::getValue)
+                        .toList();
+                String accessToken = jwtService.generateToken(loginRequest.username(), user.getId(), roles);
+                String refreshToken = createRefreshToken(accessToken);
+
+                user.setLastLoginTime(LocalDateTime.now());
+                userRepository.save(user);
+
+                logger.info("User {} successfully logged in", loginRequest.username());
+
+                return new TokenResponse(accessToken, refreshToken);
+            }
+            throw new AuthenticationFailedException();
+
+        } catch (BadCredentialsException e) {
+            incrementFailedAttempts(loginRequest.username());
+            throw new AuthenticationFailedException();
+        }
+
+    }
+
+
+    /**
+     * Kullanıcı çıkış işlemini gerçekleştirir ve refresh token silinir.
+     *
+     * @param username kullanıcı adı.
+     */
+    @Transactional
+    public void logout(String username) {
+        User user = findUserByUsername(username);
+        refreshTokenRepository.deleteByUser(user);
+        logger.info("User {} logged out", username);
+    }
+
+
+    /**
+     * Kullanıcı bilgilerini günceller. Güncelleme başarılı ise güncellenmiş UserDto nesnesini döndürür.
+     *
+     * @param username          Güncellenecek kullanıcının mevcut kullanıcı adı.
+     * @param updateUserRequest Güncelleme istek bilgilerini içeren DTO.
+     * @return Güncellenmiş kullanıcı bilgilerini içeren UserDto.
      */
     @Transactional
     public UserDto updateUser(@Valid String username, @Valid UpdateUserRequest updateUserRequest) {
 
-        User existingUser = userRepository.findByUsername(username).orElseThrow(() -> new UserNameNotFoundException(
-                new ExceptionMessage(
-                        LocalDateTime.now().toString(),
-                        HttpStatus.NOT_FOUND.value(),
-                        "Not Found",
-                        "Bu isme Sahip kullanıcı bulunamadı: " + username,
-                        "/authentication/updateUser",
-                        "Aranan kullanıcı adı ile bir kayıt bulunamadı.Kullanıcı adı: " + username
-                )
-        ));
+        User existingUser = findUserByUsername(username);
+
 
         if (!username.equals(updateUserRequest.getUsername())) {
             Optional<User> userWithNewUsername = userRepository.findByUsername(updateUserRequest.getUsername());
             if (userWithNewUsername.isPresent()) {
-                throw new UsernameAlreadyExistException(new ExceptionMessage(
-                        LocalDateTime.now().toString(),
-                        HttpStatus.CONFLICT.value(),
-                        "Conflict",
-                        "Bu kullanıcı adı zaten kullanılmakta: " + updateUserRequest.getUsername(),
-                        "/authentication/updateUser",
-                        "Bu kullanıcı adı zaten kullanılmakta lütfen farklı bir kullanıcı adı ile kayıt olun. Kullanıcı adı: " + updateUserRequest.getUsername()
-                ));
+                throw new UsernameAlreadyExistException(updateUserRequest.getUsername());
             }
         }
+
 
         if (!existingUser.getEmail().equals(updateUserRequest.getEmail())) {
             Optional<User> userWithExistingEmail = userRepository.findByEmail(updateUserRequest.getEmail());
             if (userWithExistingEmail.isPresent()) {
-                throw new EmailAlreadyExistException(new ExceptionMessage(
-                        LocalDateTime.now().toString(),
-                        HttpStatus.CONFLICT.value(),
-                        "Conflict",
-                        "Bu email adresi zaten kullanılmakta: " + updateUserRequest.getEmail(),
-                        "/authentication/updateUser",
-                        "Bu email adresi zaten kullanılmakta lütfen farklı bir email adresi ile kayıt olun. Email adresi: " + updateUserRequest.getEmail()
-                ));
+                throw new EmailAlreadyExistException(updateUserRequest.getEmail());
             }
         }
+
 
         if (!existingUser.getAuthorities().equals(updateUserRequest.getAuthorities())) {
             boolean isAdmin = existingUser.getAuthorities().stream()
                     .anyMatch(authority -> authority.toString().equals("ROLE_ADMIN"));
 
             if (!isAdmin) {
-                throw new UnauthorizedAccessException(new ExceptionMessage(
-                        LocalDateTime.now().toString(),
-                        HttpStatus.UNAUTHORIZED.value(),
-                        "Unauthorized",
-                        "Rol değişikliği yapmak için ADMIN yetkisine sahip olmanız gerekiyor.",
-                        "/authentication/updateUser",
-                        "Rol değişikliği yapmak için ADMIN yetkisine sahip olmanız gerekiyor.Sizin yetkiniz : " + updateUserRequest.getAuthorities()
-                ));
+                throw new UnauthorizedAccessException();
             }
 
-            // Son ADMIN'in rolünü değiştirmesini engelle
             long adminCount = userRepository.countAdmins();
             boolean isLastAdmin = isAdmin && adminCount == 1 &&
                     !updateUserRequest.getAuthorities().contains("ROLE_ADMIN");
 
-            logger.info("admincount : {}", adminCount);
-            logger.info("isAdmin : {}", isAdmin);
-
-
             if (isLastAdmin) {
-                throw new UnauthorizedAccessException(
-                        new ExceptionMessage(
-                                LocalDateTime.now().toString(),
-                                HttpStatus.UNAUTHORIZED.value(),
-                                "Unauthorized",
-                                "Sistemdeki son admin rolü bu kullanıcıda olduğu için rol değişikliği yapılamaz",
-                                "/authentication/updateUser",
-                                "Sistemdeki son admin rolü bu kullanıcıda olduğu için rol değişikliği yapılamaz.Bu hesabın rolünü değiştirmek istiyorsanız sisteme başka bir admin daha atayın."
-                        ));
+                throw new UnauthorizedAccessException();
             }
         }
+
+        logger.info("User update requested for {}: Old values - name:{}, lastname:{}, email:{}, roles:{}",
+                username, existingUser.getName(), existingUser.getLastName(),
+                existingUser.getEmail(), existingUser.getAuthorities());
 
 
         existingUser.setName(updateUserRequest.getName());
@@ -197,89 +219,34 @@ public class UserService implements UserDetailsService {
         existingUser.setAuthorities(updateUserRequest.getAuthorities());
         existingUser.setEmail(updateUserRequest.getEmail());
 
-        return UserDto.convertToUserDto(userRepository.save(existingUser));
+        User savedUser = userRepository.save(existingUser);
+        emailService.sendUserUpdatedMail(updateUserRequest.getEmail());
+
+        logger.info("User {} updated successfully", username);
+
+        return UserDto.convertToUserDto(savedUser);
     }
 
 
     /**
-     * Kullanıcı adı ile kullanıcıyı bularak getirir
-     *
-     * @param username the username identifying the user whose data is required.
-     * @return
-     * @throws UsernameNotFoundException
-     */
-    @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Optional<User> user = userRepository.findByUsername(username);
-        return user.orElseThrow(() -> new UserNameNotFoundException(
-                new ExceptionMessage(
-                        LocalDateTime.now().toString(),
-                        HttpStatus.NOT_FOUND.value(),
-                        "Not Found",
-                        "Bu isme Sahip kullanıcı bulunamadı: " + username,
-                        "/authentication/loadUserByUsername",
-                        "Aranan kullanıcı adı ile bir kayıt bulunamadı.Kullanıcı adı: " + username
-                )
-        ));
-    }
-
-
-    /**
-     * Tüm kullanıcıları listeler. (Soft delete yapılmış kullanıcılar hariç tutulmalıdır.)
-     */
-    @Transactional(readOnly = true)
-    public List<UserListDto> getAllUsers() {
-        return userRepository.findAll()
-                .stream()
-                .filter(user -> !user.isDeleted())
-                .map(UserListDto::converToUserListDto)
-                .collect(Collectors.toList());
-    }
-
-
-    /**
-     * Kullanıcı kaydetme işlemi
+     * Kullanıcı kayıt olma işlemini gerçekleştiren metod
      *
      * @param createUserRequest Kaydedilecek kullanıcının gerekli bilgileri
-     * @return kaydedilen kullanıcının bilgilerini döner.
+     * @return kayıt olan kullanıcının bilgilerini döner.
      */
     @Transactional
     public UserDto createUser(@Valid CreateUserRequest createUserRequest) {
 
         if (userRepository.findByUsername(createUserRequest.username()).isPresent()) {
-            throw new UsernameAlreadyExistException(
-                    new ExceptionMessage(
-                            LocalDateTime.now().toString(),
-                            HttpStatus.CONFLICT.value(),
-                            "Conflict",
-                            "Bu kullanıcı adı zaten kullanılmakta: " + createUserRequest.username(),
-                            "/authentication/createUser",
-                            "Bu kullanıcı adı zaten kullanılmakta lütfen farklı bir kullanıcı adı ile kayıt olun. Kullanıcı adı: " + createUserRequest.username()
-                    ));
+            throw new UsernameAlreadyExistException(createUserRequest.username());
         }
 
         if (userRepository.findByEmail(createUserRequest.email()).isPresent()) {
-            throw new EmailAlreadyExistException(
-                    new ExceptionMessage(
-                            LocalDateTime.now().toString(),
-                            HttpStatus.CONFLICT.value(),
-                            "Conflict",
-                            "Bu email adresi zaten kullanılmakta: " + createUserRequest.username(),
-                            "/authentication/createUser",
-                            "Bu email adresi zaten kullanılmakta lütfen farklı bir email adresi ile kayıt olun. Email adresi: " + createUserRequest.username()
-                    ));
+            throw new EmailAlreadyExistException(createUserRequest.email());
         }
 
         if (!isValidPassword(createUserRequest.password())) {
-            throw new PasswordIsWeakException(
-                    new ExceptionMessage(
-                            LocalDateTime.now().toString(),
-                            HttpStatus.BAD_REQUEST.value(),
-                            "Bad request",
-                            "Şifre güvenlik kurallarına uymuyor: ",
-                            "/authentication/createUser",
-                            "Şifre güvenlik kurallarına uymuyor. Şifre en az bir büyük harf, en az bir küçük harf ,en az bir rakam, en az bir özel karakter içermelidir ve en az 8 ila 25 karakter uzunluğunda olmalıdır. Lütfen bu kurallara uygun şifre ile tekrar deneyin."
-                    ));
+            throw new PasswordIsWeakException();
         }
 
         User newUser = new User.Builder()
@@ -296,7 +263,27 @@ public class UserService implements UserDetailsService {
                 .build();
 
         newUser.setDeleted(false);
-        return UserDto.convertToUserDto(userRepository.save(newUser));
+        newUser.setCreatedAt(LocalDateTime.now());
+
+        User savedUser = userRepository.save(newUser);
+        logger.info("New user created: {}", createUserRequest.username());
+
+        return UserDto.convertToUserDto(savedUser);
+    }
+
+
+    /**
+     * Tüm kullanıcıları listeler. (Soft delete yapılmış kullanıcılar hariç tutulur.)
+     *
+     * @return Soft delete yapılmamış kullanıcıların DTO halindeki listesini döndürür.
+     */
+    @Transactional(readOnly = true)
+    public List<UserListDto> getAllUsers() {
+        return userRepository.findAll()
+                .stream()
+                .filter(user -> !user.isDeleted())
+                .map(UserListDto::converToUserListDto)
+                .collect(Collectors.toList());
     }
 
 
@@ -307,178 +294,131 @@ public class UserService implements UserDetailsService {
      */
     @Transactional
     public void softDeleteUser(String username) {
-        User user = userRepository.findByUsername(username).orElseThrow(() -> new UserNameNotFoundException(
-                new ExceptionMessage(
-                        LocalDateTime.now().toString(),
-                        HttpStatus.NOT_FOUND.value(),
-                        "Not Found",
-                        "Bu isme sahip kullanıcı bulunamadı: " + username,
-                        "/authentication/softDeleteUser",
-                        "Aranan kullanıcı adı ile bir kayıt bulunamadı. Kullanıcı adı: " + username
-                ))
-        );
+
+        User user = findUserByUsername(username);
+
+        boolean isAdmin = user.getAuthorities().stream()
+                .anyMatch(authority -> authority.toString().equals(ROLE_ADMIN));
+
+        if (isAdmin && userRepository.countAdmins() == 1) {
+            throw new UnauthorizedAccessException();
+        }
 
         user.setDeleted(true);
+        user.setDeletedAt(LocalDateTime.now());
         userRepository.save(user);
+
+        logger.info("User {} marked as deleted", username);
     }
 
 
     /**
      * Kullanıcının şifre değiştirme işlemi
      *
-     * @param username              kullanıcı adı
      * @param changePasswordRequest eski şifre ve yeni şifre bilgileri
      */
     @Transactional
-    public void changePassword(@Valid String username, @Valid ChangePasswordRequest changePasswordRequest) {
-        User user = userRepository.findByUsername(username).orElseThrow(() -> new UserNameNotFoundException(
-                new ExceptionMessage(
-                        LocalDateTime.now().toString(),
-                        HttpStatus.NOT_FOUND.value(),
-                        "Not Found",
-                        "Bu isme Sahip kullanıcı bulunamadı: " + username,
-                        "/authentication/changePassword",
-                        "Aranan kullanıcı adı ile bir kayıt bulunamadı.Kullanıcı adı: " + username
-                )
-        ));
+    public void changePassword(@Valid String username ,@Valid ChangePasswordRequest changePasswordRequest) {
+
+
+        User user = findUserByUsername(username);
 
         if (changePasswordRequest.newPassword().equals(changePasswordRequest.oldPassword())) {
-            throw new PasswordIsWeakException(
-                    new ExceptionMessage(
-                            LocalDateTime.now().toString(),
-                            HttpStatus.BAD_REQUEST.value(),
-                            "Bad request",
-                            "Yeni şifre eski şifre ile aynı olamaz.",
-                            "/authentication/changePassword",
-                            "Yeni şifre eski şifre ile aynı olamaz. Lütfen farklı bir şifre girin."
-
-                    ));
+            throw new PasswordsCannotBeTheSameException();
         }
 
-
         if (!bCryptPasswordEncoder.matches(changePasswordRequest.oldPassword(), user.getPassword())) {
-            throw new OldPasswordIsIncorrectException(
-                    new ExceptionMessage(
-                            LocalDateTime.now().toString(),
-                            HttpStatus.BAD_REQUEST.value(),
-                            "Bad request",
-                            "Eski şifre hatalı.",
-                            "/authentication/changePassword",
-                            "Eski şifre hatalı. Lütfen şifreyi kontrol edin."
-                    )
-            );
+            throw new OldPasswordIsIncorrectException();
         }
 
         if (!isValidPassword(changePasswordRequest.newPassword())) {
-            throw new PasswordIsWeakException(
-                    new ExceptionMessage(
-                            LocalDateTime.now().toString(),
-                            HttpStatus.BAD_REQUEST.value(),
-                            "Bad request",
-                            "Yeni şifre güvenlik kurallarına uymuyor: ",
-                            "/authentication/changePassword",
-                            "Yeni şifre güvenlik kurallarına uymuyor. Şifre en az bir büyük harf, en az bir küçük harf ,en az bir rakam, en az bir özel karakter içermelidir ve en az 8 ila 25 karakter uzunluğunda olmalıdır. Lütfen bu kurallara uygun şifre ile tekrar deneyin."
-                    ));
+            throw new PasswordIsWeakException();
         }
+
 
         user.setPassword(bCryptPasswordEncoder.encode(changePasswordRequest.newPassword()));
+        user.setPasswordChangedAt(LocalDateTime.now());
         userRepository.save(user);
+
+        emailService.sendPasswordChangeNotification(user.getEmail());
+        logger.info("Password changed for user {}", username);
     }
 
+
+    @Transactional
+    public String createRefreshToken(String accessToken) {
+        String username = jwtService.extractUsername(accessToken);
+        User user = findUserByUsername(username);
+
+        if (!jwtService.validateToken(accessToken, user)) {
+            throw new UnauthorizedAccessException();
+        }
+
+        // Mevcut refresh token'ı bul
+        List<RefreshToken> existingTokens = refreshTokenRepository.findByUser(user);
+
+        if (!existingTokens.isEmpty()) {
+            logger.debug("Eski refresh token mevcut, siliniyor... Kullanıcı ID: {}", user.getId());
+            // Eski token'ı sil
+            refreshTokenRepository.deleteByUser(user);
+        }
+
+        // Yeni refresh token oluştur
+        String newRefreshToken = jwtService.generateRefreshToken(user.getUsername(), user.getId());
+        String hashedToken = hashToken(newRefreshToken);
+
+        RefreshToken refreshToken = new RefreshToken();
+        refreshToken.setToken(hashedToken);
+        refreshToken.setUser(user);
+        refreshToken.setExpiryDate(Instant.now().plus(REFRESH_TOKEN_EXPIRY_DAYS, ChronoUnit.DAYS));
+
+        // Yeni token'ı kaydet
+        logger.debug("Yeni refresh token kaydediliyor: {}", hashedToken);
+        refreshTokenRepository.save(refreshToken);
+
+        return newRefreshToken;
+    }
+
+
+
+
     /**
-     * Refresh token kullanarak yeni access token oluşturur.
+     * Access token'ı yeniler
      *
-     * @param resetTokenRequest
-     * @return jwt token döner
+     * @param refreshToken Refresh token
+     * @return Yeni access token ve refresh token
      */
     @Transactional
-    public String resetToken(ResetTokenRequest resetTokenRequest) {
-        String incomingRefreshToken = resetTokenRequest.refreshToken();
-        if (!jwtService.validateRefreshToken(incomingRefreshToken)) {
-            throw new InvalidTokenException(new ExceptionMessage(
-                    LocalDateTime.now().toString(),
-                    HttpStatus.UNAUTHORIZED.value(),
-                    "Unauthorized",
-                    "Refresh token geçersiz veya süresi dolmuş.",
-                    "/authentication/resetToken",
-                    "Refresh token geçersiz."
-            ));
+    public TokenResponse refreshAccessToken(String refreshToken) {
+        String hashedToken = hashToken(refreshToken);
+
+        RefreshToken storedToken = refreshTokenRepository.findByToken(hashedToken)
+                .orElseThrow(InvalidTokenException::new);
+
+        if (storedToken.getExpiryDate().isBefore(Instant.now())) {
+            refreshTokenRepository.delete(storedToken);
+            throw new InvalidTokenException();
         }
 
-        String username = jwtService.extractUser(incomingRefreshToken);
-        User user = userRepository.findByUsername(username).orElseThrow(() -> new UserNameNotFoundException(
-                new ExceptionMessage(
-                        LocalDateTime.now().toString(),
-                        HttpStatus.NOT_FOUND.value(),
-                        "Not Found",
-                        "Bu isme Sahip kullanıcı bulunamadı: " + username,
-                        "/authentication/resetToken",
-                        "Aranan kullanıcı adı ile bir kayıt bulunamadı.Kullanıcı adı: " + username
-                )
-
-        ));
-
-        if (user.isDeleted()) {
-            throw new UserNameNotFoundException(
-                    new ExceptionMessage(
-                            LocalDateTime.now().toString(),
-                            HttpStatus.NOT_FOUND.value(),
-                            "Not Found",
-                            "Bu isme Sahip kullanıcı bulunamadı: " + username,
-                            "/authentication/resetToken",
-                            "Aranan kullanıcı adı ile bir kayıt bulunamadı.Kullanıcı adı: " + username
-                    )
-
-            );
-
-        }
+        User user = storedToken.getUser();
 
         List<String> roles = user.getAuthorities()
                 .stream()
                 .map(Role::getValue)
                 .toList();
 
-        return jwtService.generateToken(username, user.getId(),roles);
-
-    }
-
-
-    @Transactional
-    public String createRefreshToken(String username) {
-
-        User user = userRepository.findByUsername(username).orElseThrow(() -> new UserNameNotFoundException(
-                new ExceptionMessage(
-                        LocalDateTime.now().toString(),
-                        HttpStatus.NOT_FOUND.value(),
-                        "Not Found",
-                        "Bu isme Sahip kullanıcı bulunamadı: " + username,
-                        "/authentication/createRefreshToken",
-                        "Aranan kullanıcı adı ile bir kayıt bulunamadı.Kullanıcı adı: " + username
-                )));
-
-        if (user.isDeleted()) {
-            throw new UserNameNotFoundException(
-                    new ExceptionMessage(
-                            LocalDateTime.now().toString(),
-                            HttpStatus.NOT_FOUND.value(),
-                            "Not Found",
-                            "Bu isme Sahip kullanıcı bulunamadı: " + username,
-                            "/authentication/createRefreshToken",
-                            "Aranan kullanıcı adı ile bir kayıt bulunamadı.Kullanıcı adı: " + username
-                    )
-
-            );
-
-        }
-
-        String refreshToken = jwtService.generateRefreshToken(username, user.getId());
-
-        user.setResetToken(refreshToken);
-        user.setResetTokenExpiry(LocalDateTime.now());
-        userRepository.save(user);
+        String newAccessToken = jwtService.generateToken(user.getUsername(), user.getId(), roles);
+        String newRefreshToken = jwtService.generateRefreshToken(user.getUsername(), user.getId());
+        String hashedNewToken = hashToken(newRefreshToken);
 
 
-        return refreshToken;
+        storedToken.setToken(hashedNewToken);
+        storedToken.setExpiryDate(Instant.now().plus(REFRESH_TOKEN_EXPIRY_DAYS, ChronoUnit.DAYS));
+        refreshTokenRepository.save(storedToken);
+
+        logger.info("Access token refreshed for user {}", user.getUsername());
+
+        return new TokenResponse(newAccessToken, newRefreshToken);
     }
 
 
@@ -489,117 +429,142 @@ public class UserService implements UserDetailsService {
      */
     @Transactional
     public void initiatePasswordReset(InitiatePasswordResetRequest initiatePasswordResetRequest) {
+
         User user = userRepository.findByEmail(initiatePasswordResetRequest.email())
-                .orElseThrow(() -> new EmailNotFoundException(new ExceptionMessage(
-                        LocalDateTime.now().toString(),
-                        HttpStatus.NOT_FOUND.value(),
-                        "Not Found",
-                        "Bu email adresine sahip kullanıcı bulunamadı: " + initiatePasswordResetRequest.email(),
-                        "/authentication/initiatePasswordReset",
-                        "Email adresi bulunamadı: " + initiatePasswordResetRequest.email()
-                )));
-        String resetToken = UUID.randomUUID().toString();
-        user.setResetToken(resetToken);
-        user.setResetTokenExpiry(LocalDateTime.now().plusHours(1));
+                .orElseThrow(() -> new EmailNotFoundException(initiatePasswordResetRequest.email()));
+
+        String passwordResetToken = jwtService.generateResetToken(user.getId(), user.getEmail());
+        emailService.sendPasswordResetEmail(user.getEmail(), passwordResetToken);
+
+        user.setResetTokenCreatedAt(LocalDateTime.now());
         userRepository.save(user);
-        emailService.sendPasswordResetEmail(user.getEmail(), resetToken);
+
+        logger.info("Password reset initiated for user with email {}", initiatePasswordResetRequest.email());
     }
+
 
     /**
      * Şifre sıfırlama işlemini tamamlar. Reset token ve yeni şifre ile şifre güncellenir.
      *
-     * @param completePasswordResetRequest şifre yenileme isteği için gerekli olan token ve yeni şifre
+     * @param resetToken kullanıcının mail adresine gelen reset token
+     * @param request    kullanıcıdan alınancak yeni şifre
      */
     @Transactional
-    public void completePasswordReset(CompletePasswordResetRequest completePasswordResetRequest) {
-        User user = userRepository.findByResetToken(completePasswordResetRequest.resetToken())
-                .orElseThrow(() -> new InvalidTokenException(new ExceptionMessage(
-                        LocalDateTime.now().toString(),
-                        HttpStatus.BAD_REQUEST.value(),
-                        "Bad request",
-                        "Geçersiz şifre sıfırlama token'ı.",
-                        "/authentication/completePasswordReset",
-                        "Şifre sıfırlama token'ı bulunamadı veya geçersiz."
-                )));
+    public void completePasswordReset(String resetToken, ResetPasswordRequest request) {
 
-        if (user.getResetTokenExpiry() == null || user.getResetTokenExpiry().isBefore(LocalDateTime.now())) {
-            throw new TokenExpiredException(new ExceptionMessage(
-                    LocalDateTime.now().toString(),
-                    HttpStatus.BAD_REQUEST.value(),
-                    "Bad request",
-                    "Şifre sıfırlama token'ı süresi dolmuş.",
-                    "/authentication/completePasswordReset",
-                    "Token süresi geçmiş. Yeni sıfırlama isteği gönderiniz."
-            ));
+        if (!jwtService.validateResetToken(resetToken)) {
+            throw new InvalidTokenException();
         }
 
-        if (!completePasswordResetRequest.resetPasswordRequest().newPassword().equals(completePasswordResetRequest.resetPasswordRequest().newPasswordAgain())) {
-            throw new PasswordIsNotSameException(new ExceptionMessage(
-                    LocalDateTime.now().toString(),
-                    HttpStatus.BAD_REQUEST.value(),
-                    "Bad request",
-                    "Şifreler aynı değil.",
-                    "/authentication/completePasswordReset",
-                    "Tekrar yazılması istenen şifre ilk yazılan şifre ile aynı değil. Lütfen kontrol ediniz."
-            ));
+        String userId = jwtService.extractUserId(resetToken);
+        User user = userRepository.findById(userId).orElseThrow(InvalidTokenException::new);
+
+        if (user.getResetTokenCreatedAt() != null &&
+                user.getResetTokenCreatedAt().plusHours(24).isBefore(LocalDateTime.now())) {
+            throw new InvalidTokenException();
         }
 
-        if (!isValidPassword(completePasswordResetRequest.resetPasswordRequest().newPassword())) {
-            throw new PasswordIsWeakException(new ExceptionMessage(
-                    LocalDateTime.now().toString(),
-                    HttpStatus.BAD_REQUEST.value(),
-                    "Bad request",
-                    "Yeni şifre güvenlik kurallarına uymuyor.",
-                    "/authentication/completePasswordReset",
-                    "Şifre, en az bir büyük harf, bir küçük harf, bir rakam, bir özel karakter içermeli ve 8-25 karakter olmalıdır."
-            ));
+        if (!request.newPassword().equals(request.newPasswordAgain())) {
+            throw new PasswordIsNotSameException();
         }
 
-        user.setPassword(bCryptPasswordEncoder.encode(completePasswordResetRequest.resetPasswordRequest().newPassword()));
-        user.setResetToken(null);
-        user.setResetTokenExpiry(null);
+        if (!isValidPassword(request.newPassword())) {
+            throw new PasswordIsWeakException();
+        }
+
+        user.setPassword(bCryptPasswordEncoder.encode(request.newPassword()));
+        user.setPasswordChangedAt(LocalDateTime.now());
+        user.setResetTokenCreatedAt(null);
         userRepository.save(user);
-    }
-
-
-    @Transactional
-    public UserDto updateUserRoles(String username, UpdateUserRolesRequest updateUserRolesRequest) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UserNameNotFoundException(new ExceptionMessage(
-                        LocalDateTime.now().toString(),
-                        HttpStatus.NOT_FOUND.value(),
-                        "Not Found",
-                        "Bu isme sahip kullanıcı bulunamadı: " + username,
-                        "/authentication/updateUserRoles",
-                        "Kullanıcı bulunamadı: " + username
-                )));
-
-        user.setAuthorities(updateUserRolesRequest.newRoles().stream().map(Role::valueOf).collect(Collectors.toSet()));
-        return UserDto.convertToUserDto(userRepository.save(user));
-    }
-
-
-    private String createRefreshToken(String username, String userId) {
-        return jwtService.generateRefreshToken(username, userId);
+        logger.info("Password reset completed for user {}", user.getUsername());
     }
 
 
     /**
-     * Kullanıcının user id değerini getirir.
+     * Kullanıcı rollerini günceller
      *
-     * @param username Kullanıcı Adı
-     * @return kullanıcı adı ile bir kullanıcı var ise kullanıcının user id' sini döner.
+     * @param username               Kullanıcı adı
+     * @param updateUserRolesRequest Yeni roller
+     * @return Güncellenen kullanıcı
      */
-    private String getUserIdByUsername(String username) {
-        return userRepository.findUserIdByUsername(username).orElseThrow(() -> new UserNameNotFoundException(
-                new ExceptionMessage(
-                        LocalDateTime.now().toString(),
-                        HttpStatus.NOT_FOUND.value(),
-                        "Not found",
-                        "Kullanıcı adıyla kullanıcı bulunamadı: " + username,
-                        "/authentication/getUserIdByUsername",
-                        "Bu kullanıcı adıyla kullanıcı bulunamadı. Lütfen kullanıcı adını kontrol edin. Kullanıcı adı :" + username
-                )));
+    @Transactional
+    public UserDto updateUserRoles(String username, UpdateUserRolesRequest updateUserRolesRequest) {
+        User user = findUserByUsername(username);
+
+        logger.info("Updating roles for user {}. Old roles: {}", username,
+                user.getAuthorities().stream().map(Role::toString).collect(Collectors.joining(", ")));
+
+        boolean isAdmin = user.getAuthorities().stream()
+                .anyMatch(authority -> authority.toString().equals(ROLE_ADMIN));
+
+        boolean willRemainAdmin = updateUserRolesRequest.newRoles().contains(ROLE_ADMIN);
+
+        if (isAdmin && !willRemainAdmin && userRepository.countAdmins() == 1) {
+            throw new UnauthorizedAccessException();
+        }
+
+        user.setAuthorities(updateUserRolesRequest.newRoles()
+                .stream()
+                .map(Role::valueOf)
+                .collect(Collectors.toSet()));
+
+        User savedUser = userRepository.save(user);
+
+        logger.info("Roles updated for user {}. New roles: {}", username,
+                savedUser.getAuthorities().stream().map(Role::toString).collect(Collectors.joining(", ")));
+
+        return UserDto.convertToUserDto(savedUser);
+    }
+
+
+    /**
+     * Kullanıcı hesabını kilitleyip kilidini açma işlemi
+     *
+     * @param username Kilitlenecek/kilidi açılacak kullanıcının adı
+     * @param locked   Kilit durumu (true: kilitli, false: açık)
+     * @return Güncellenen kullanıcı bilgileri
+     */
+    @Transactional
+    public UserDto toggleAccountLock(String username, boolean locked) {
+        User user = findUserByUsername(username);
+
+        boolean isAdmin = user.getAuthorities().stream()
+                .anyMatch(authority -> authority.toString().equals(ROLE_ADMIN));
+
+        if (isAdmin && locked && userRepository.countAdmins() == 1) {
+            throw new UnauthorizedAccessException();
+        }
+
+        user.setAccountNonLocked(!locked);
+        User savedUser = userRepository.save(user);
+
+        logger.info("Account {} {} by admin", username, locked ? "locked" : "unlocked");
+
+        if (!locked) {
+            lockedAccounts.remove(username);
+            resetFailedAttempts(username);
+        }
+
+        return UserDto.convertToUserDto(savedUser);
+
+
+    }
+
+    /**
+     * Son giriş zamanına göre aktif olmayan kullanıcıları listeler
+     *
+     * @param days Kaç gündür aktif olmayan kullanıcılar listelenecek
+     * @return Aktif olmayan kullanıcılar listesi
+     */
+    @Transactional(readOnly = true)
+    public List<UserListDto> getInactiveUsers(int days) {
+        LocalDateTime cutoffDate = LocalDateTime.now().minusDays(days);
+
+        return userRepository.findByLastLoginTimeBefore(cutoffDate)
+                .stream()
+                .filter(user -> !user.isDeleted())
+                .map(UserListDto::converToUserListDto)
+                .collect(Collectors.toList());
     }
 
 
@@ -613,6 +578,98 @@ public class UserService implements UserDetailsService {
         String passwordPattern = "^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[@#$%^&+=!~?<>|])(?=.{8,25}$).*$";
         return password.matches(passwordPattern);
     }
+
+
+    /**
+     * Token'ı güvenli bir şekilde hashler
+     *
+     * @param token Orijinal token
+     * @return Hashlenmiş token
+     */
+    private String hashToken(String token) {
+        return bCryptPasswordEncoder.encode(token);
+    }
+
+
+    /**
+     * Kullanıcı adına göre kullanıcıyı bulur (Yardımcı metod)
+     *
+     * @param username Kullanıcı adı
+     * @return Bulunan kullanıcı
+     * @throws UserNotFoundException Kullanıcı bulunamazsa
+     */
+    private User findUserByUsername(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(username));
+
+        if (user.isDeleted()) {
+            throw new UserNotFoundException(username);
+        }
+
+        return user;
+    }
+
+
+    /**
+     * Başarısız giriş denemelerini artırır ve gerekirse hesabı kilitler
+     *
+     * @param username Kullanıcı adı
+     */
+    private void incrementFailedAttempts(String username) {
+        int attempts = loginAttemptCache.getOrDefault(username, 0);
+        attempts++;
+
+        if (attempts >= MAX_FAILED_ATTEMPTS) {
+            lockAccount(username);
+            loginAttemptCache.remove(username);
+        } else {
+            loginAttemptCache.put(username, attempts);
+        }
+
+        logger.warn("Failed login attempt {} for user {}", attempts, username);
+
+    }
+
+    /**
+     * Başarısız giriş denemelerini sıfırlar
+     *
+     * @param username Kullanıcı adı
+     */
+    private void resetFailedAttempts(String username) {
+        loginAttemptCache.remove(username);
+    }
+
+
+    /**
+     * Kullanıcı hesabını kilitler
+     *
+     * @param username Kullanıcı adı
+     */
+    private void lockAccount(String username) {
+        lockedAccounts.put(username, Instant.now().plus(LOCK_TIME_DURATION_MINUTES, ChronoUnit.MINUTES));
+        logger.warn("Account {} locked due to multiple failed attempts", username);
+    }
+
+
+    /**
+     * Hesabın kilitli olup olmadığını kontrol eder
+     *
+     * @param username Kullanıcı adı
+     * @return Hesap kilitli ise true
+     */
+    private boolean isAccountLocked(String username) {
+        if (lockedAccounts.containsKey(username)) {
+            Instant lockTime = lockedAccounts.get(username);
+
+            if (Instant.now().isAfter(lockTime)) {
+                lockedAccounts.remove(username);
+                return false;
+            }
+            return true;
+        }
+        return false;
+    }
+
 
 }
 

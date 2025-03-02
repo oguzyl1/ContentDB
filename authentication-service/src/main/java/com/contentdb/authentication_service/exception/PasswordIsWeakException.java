@@ -1,20 +1,16 @@
 package com.contentdb.authentication_service.exception;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
 
-@ResponseStatus(value = HttpStatus.BAD_REQUEST)
-public class PasswordIsWeakException extends RuntimeException {
+public class PasswordIsWeakException extends BaseException {
 
-    private final ExceptionMessage exceptionMessage;
+    public PasswordIsWeakException() {
+        super("Şifre güvenlik kurallarına uymuyor. Şifre en az bir büyük harf," +
+                        " en az bir küçük harf ,en az bir rakam," +
+                        " en az bir özel karakter içermelidir ve en az 8 ila 25 karakter" +
+                        " uzunluğunda olmalıdır. Lütfen bu kurallara uygun şifre ile tekrar deneyin."
 
-    public PasswordIsWeakException(ExceptionMessage exceptionMessage) {
-        super(exceptionMessage.errorMessage());
-        this.exceptionMessage = exceptionMessage;
+                , "BAD_REQUEST",
+                HttpStatus.BAD_REQUEST);
     }
-
-    public ExceptionMessage getExceptionMessage() {
-        return exceptionMessage;
-    }
-
 }

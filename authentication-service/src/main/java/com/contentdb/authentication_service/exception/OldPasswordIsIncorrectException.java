@@ -1,20 +1,10 @@
 package com.contentdb.authentication_service.exception;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
 
-@ResponseStatus(value = HttpStatus.BAD_REQUEST)
-public class OldPasswordIsIncorrectException extends RuntimeException {
+public class OldPasswordIsIncorrectException extends BaseException {
 
-    private final ExceptionMessage exceptionMessage;
-
-    public OldPasswordIsIncorrectException(ExceptionMessage exceptionMessage) {
-        super(exceptionMessage.errorMessage());
-        this.exceptionMessage = exceptionMessage;
+    public OldPasswordIsIncorrectException() {
+            super("Eski şifre hatalı. Lütfen şifreyi kontrol edin.", "BAD_REQUEST", HttpStatus.BAD_REQUEST);
     }
-
-    public ExceptionMessage getExceptionMessage() {
-        return exceptionMessage;
-    }
-
 }

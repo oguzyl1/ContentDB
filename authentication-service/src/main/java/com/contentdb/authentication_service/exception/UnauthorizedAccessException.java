@@ -1,20 +1,10 @@
 package com.contentdb.authentication_service.exception;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
 
-@ResponseStatus(value = HttpStatus.UNAUTHORIZED)
-public class UnauthorizedAccessException extends RuntimeException {
+public class UnauthorizedAccessException extends BaseException {
 
-    private final ExceptionMessage exceptionMessage;
-
-    public UnauthorizedAccessException(ExceptionMessage exceptionMessage) {
-        super(exceptionMessage.errorMessage());
-        this.exceptionMessage = exceptionMessage;
+    public UnauthorizedAccessException() {
+        super("Rol değişikliği yapmak için yetki yok.", "UNAUTHORIZED", HttpStatus.UNAUTHORIZED);
     }
-
-    public ExceptionMessage getExceptionMessage() {
-        return exceptionMessage;
-    }
-
 }

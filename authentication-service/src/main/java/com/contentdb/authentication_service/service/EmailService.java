@@ -1,18 +1,69 @@
-/** daha sonra eklenecek */
+/**
+ * daha sonra eklenecek
+ */
 
 package com.contentdb.authentication_service.service;
 
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
+
 
 @Service
 public class EmailService {
-    private static final Logger logger = LoggerFactory.getLogger(EmailService.class);
 
-    public void sendPasswordResetEmail(String email, String resetToken) {
-        // Gerçek email gönderimi yerine, sadece loglama yapıyoruz.
-        logger.info("Şifre sıfırlama emaili gönderiliyor. Email: {}, Reset Token: {}", email, resetToken);
+    private final JavaMailSender mailSender;
+
+    @Value("${spring.mail.username}")
+    private String fromEmail;  // Gönderen e-posta adresi
+
+    public EmailService(JavaMailSender mailSender) {
+        this.mailSender = mailSender;
+    }
+
+    public void sendPasswordResetEmail(String toEmail, String token) {
+        String resetUrl = "http://localhost:8080/api/v1/auth/password-reset/complete?token=" + token;
+        String subject = "Şifre Sıfırlama Talebi";
+        String body = "Şifrenizi sıfırlamak için aşağıdaki bağlantıya tıklayın:\n" + resetUrl;
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(toEmail);
+        message.setSubject(subject);
+        message.setText(body);
+
+        mailSender.send(message);
+    }
+
+
+    /**
+     * Kullanıcının şifre değişikliği sonrası bildirim maili gönderir.
+     *
+     * @param toEmail Bildirimin gönderileceği e-posta adresi.
+     */
+    public void sendPasswordChangeNotification(String toEmail) {
+        String subject = "Şifre Değişikliği Bildirimi";
+        String body = "Hesabınızın şifresi başarıyla değiştirilmiştir. Eğer bu işlemi siz yapmadıysanız, lütfen derhal destek ekibimizle iletişime geçin.";
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(toEmail);
+        message.setSubject(subject);
+        message.setText(body);
+        mailSender.send(message);
+    }
+
+
+    public void sendUserUpdatedMail(String toEmail) {
+        String subject = "Kullanıcı Bilgileri Değişikliği Bildirimi";
+        String body = "Hesap bilgileriniz değiştirilmiştir. Eğer bu işlemi siz yapmadıysanız, lütfen derhal destek ekibimizle iletişime geçin.";
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(toEmail);
+        message.setSubject(subject);
+        message.setText(body);
+        mailSender.send(message);
     }
 }
+

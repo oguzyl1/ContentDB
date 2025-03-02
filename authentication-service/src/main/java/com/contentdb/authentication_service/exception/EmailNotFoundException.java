@@ -1,22 +1,10 @@
 package com.contentdb.authentication_service.exception;
 
-
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
 
-@ResponseStatus(value = HttpStatus.NOT_FOUND)
-public class EmailNotFoundException extends RuntimeException {
+public class EmailNotFoundException extends BaseException {
 
-    private final ExceptionMessage exceptionMessage;
-
-    public EmailNotFoundException(ExceptionMessage exceptionMessage) {
-        super(exceptionMessage.errorMessage());
-        this.exceptionMessage = exceptionMessage;
+    public EmailNotFoundException(String email) {
+        super("Bu email adresine sahip kullanıcı bulunamadı" + email, "USER_EMAIL_NOT_FOUND", HttpStatus.NOT_FOUND);
     }
-
-
-    public ExceptionMessage getExceptionMessage() {
-        return exceptionMessage;
-    }
-
 }

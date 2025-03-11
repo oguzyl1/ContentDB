@@ -23,8 +23,23 @@ public class EmailService {
         this.mailSender = mailSender;
     }
 
+
+    public void userCreated(String toEmail){
+        String subject = "ContentDB Üyeliği Başarıyla Oluşturuldu";
+        String body ="Aramıza hoş geldiniz. Dizi, film ve daha fazlası için sitemizi ziyaret edebilirsiniz.";
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(toEmail);
+        message.setSubject(subject);
+        message.setText(body);
+
+        mailSender.send(message);
+
+    }
+
     public void sendPasswordResetEmail(String toEmail, String token) {
-        String resetUrl = "http://localhost:8080/api/v1/auth/password-reset/complete?token=" + token;
+        String resetUrl = "http://localhost:8080/api/auth/password-reset/complete?token=" + token;
         String subject = "Şifre Sıfırlama Talebi";
         String body = "Şifrenizi sıfırlamak için aşağıdaki bağlantıya tıklayın:\n" + resetUrl;
 

@@ -1,11 +1,13 @@
 package com.contentdb.authentication_service.security;
 
+import com.contentdb.authentication_service.repository.RefreshTokenRepository;
+import com.contentdb.authentication_service.service.JwtService;
+import com.contentdb.authentication_service.service.RefreshTokenService;
 import com.contentdb.authentication_service.service.UserService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -18,6 +20,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 
 @Configuration
 @EnableWebSecurity
@@ -25,30 +28,37 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private static final String[] PUBLIC_URLS = {
-            "/api/v1/auth/welcome",
-            "/api/v1/auth/register",
-            "/api/v1/auth/login",
-            "/api/v1/auth/password/reset/initiate",
-            "/api/v1/auth/password/reset/complete"
+            "/api/auth/register",
+            "/api/auth/login",
+            "/api/auth/password-reset/initiate",
+            "/api/auth/password-reset/complete"
     };
 
     private static final String[] ADMIN_URLS = {
-            "/api/v1/users/active-users",
-            "/api/v1/users/inactive-users",
-            "/api/v1/users/ban-user"
+            "/api/admin/**"
+    };
+
+    private static final String[] AUTHENTICATED_URLS = {
+            "/api/users/**"
     };
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final JwtService jwtService;
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
-    public static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
+    private final TokenBlacklist tokenBlacklist;
+    private final RefreshTokenService refreshTokenService;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter,
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter, JwtService jwtService,
                           @Lazy UserService userService,
-                          PasswordEncoder passwordEncoder) {
+                          PasswordEncoder passwordEncoder, TokenBlacklist tokenBlacklist,
+                          RefreshTokenRepository refreshTokenRepository, RefreshTokenService refreshTokenService) {
         this.jwtAuthFilter = jwtAuthFilter;
+        this.jwtService = jwtService;
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
+        this.tokenBlacklist = tokenBlacklist;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @Bean
@@ -56,28 +66,27 @@ public class SecurityConfig {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configure(http))
+                .logout(logout -> logout
+                        .logoutUrl("/api/users/logout")
+                        .addLogoutHandler((request, response, authentication) -> {
+                            String authHeader = request.getHeader("Authorization");
+                            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                                String accessToken = authHeader.substring(7);
+                                tokenBlacklist.addToBlacklist(accessToken);
+
+                                String userId = jwtService.extractUserId(accessToken);
+                                if (userId != null) {
+                                    refreshTokenService.deleteRefreshTokenByUserId(userId);
+                                }
+                            }
+                        })
+                        .logoutSuccessHandler(new HttpStatusReturningLogoutSuccessHandler(HttpStatus.OK))
+                        .deleteCookies("refresh")
+                )
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints - no authentication required
                         .requestMatchers(PUBLIC_URLS).permitAll()
-
-                        // Admin only endpoints
                         .requestMatchers(ADMIN_URLS).hasRole("ADMIN")
-                        .requestMatchers("/api/v1/users/{userId}").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/users/{username}/delete").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/users/{username}/roles").hasRole("ADMIN")
-
-                        // User specific endpoints - require authentication
-                        .requestMatchers("/api/v1/users/logout").authenticated()
-                        .requestMatchers("/api/v1/users/password/change").authenticated()
-                        .requestMatchers("/api/v1/auth/token/create-access").authenticated()
-                        .requestMatchers("/api/v1/auth/token/refresh").authenticated()  // Refresh token endpoint authentication required
-
-                        // The update endpoint is handled by @PreAuthorize in the controller
-                        // This ensures only the user or an admin can update a specific user
-                        .requestMatchers("/api/v1/users/{username}/update").authenticated()
-                        .requestMatchers("api/v1/users/{username}/delete").authenticated()
-
-                        // All other requests need authentication
+                        .requestMatchers(AUTHENTICATED_URLS).authenticated()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session ->

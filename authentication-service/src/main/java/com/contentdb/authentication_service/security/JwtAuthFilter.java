@@ -1,5 +1,6 @@
 package com.contentdb.authentication_service.security;
 
+import com.contentdb.authentication_service.exception.UnauthorizedAccessException;
 import com.contentdb.authentication_service.service.JwtService;
 import com.contentdb.authentication_service.service.UserService;
 import jakarta.servlet.FilterChain;
@@ -22,10 +23,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserService userService;
+    private final TokenBlacklist tokenBlacklist;
 
-    public JwtAuthFilter(JwtService jwtService,@Lazy UserService userService) {
+
+    public JwtAuthFilter(JwtService jwtService, @Lazy UserService userService, TokenBlacklist tokenBlacklist) {
         this.jwtService = jwtService;
         this.userService = userService;
+        this.tokenBlacklist = tokenBlacklist;
     }
 
 
@@ -41,6 +45,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7);
             username = jwtService.extractUser(token);
+
+            if (tokenBlacklist.isBlacklisted(token)) {
+                throw new UnauthorizedAccessException();
+            }
         }
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {

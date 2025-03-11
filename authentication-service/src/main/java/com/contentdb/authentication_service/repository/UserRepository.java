@@ -25,4 +25,6 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     List<User> findByLastLoginTimeBefore(LocalDateTime time);
 
+    Optional<User> findByUsernameOrEmail(String username, String email);
+
 }

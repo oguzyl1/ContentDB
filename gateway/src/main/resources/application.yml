@@ -3,23 +3,38 @@ spring:
     name: gateway-service
   cloud:
     gateway:
+
       routes:
         - id: content-service
           uri: lb://content-service
           predicates:
-            - Path=/v1/content/**
-        - id: library-service
+            - Path=/api/content/**
+
+        - id: library-service-create
           uri: lb://library-service
           predicates:
-            - Path=/api/v1/library/**
-        - id: library-service
+            - Path=/api/list/**
+
+        - id: library-service-contents
           uri: lb://library-service
           predicates:
-            - Path=/api/v1/library/{libraryName}/contents/**
-        - id:
+            - Path=/api/list/content/**
+
+        - id: authentication-service-admin
           uri: lb://authentication-service
           predicates:
-            - Path=/api/v1/**
+            - Path=/api/admin/**
+
+        - id: authentication-service-auth
+          uri: lb://authentication-service
+          predicates:
+            - Path=/api/auth/**
+
+        - id: authentication-service-users
+          uri: lb://authentication-service
+          predicates:
+            - Path=/api/users/**
+
       discovery:
         locator:
           enabled: true

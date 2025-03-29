@@ -1,10 +1,7 @@
 package com.contentdb.content_service.client.tmdb;
 
 import com.contentdb.content_service.client.dto.general.TmdbMultiSearchResult;
-import com.contentdb.content_service.client.dto.movie.MovieCreditsResponse;
-import com.contentdb.content_service.client.dto.movie.MovieDetailResponse;
-import com.contentdb.content_service.client.dto.movie.MovieRecommendationResult;
-import com.contentdb.content_service.client.dto.movie.MovieTranslationsResult;
+import com.contentdb.content_service.client.dto.movie.*;
 import com.contentdb.content_service.client.dto.series.*;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -85,10 +82,19 @@ public interface TmdbFeignClient {
      * @param language Yanıtın döneceği dil (Varsayılan: İngilizce).
      * @return Filmin mevcut çeviri bilgilerini içeren yanıt.
      */
-    @GetMapping("movie/{movie_id}/translations")
+    @GetMapping("/movie/{movie_id}/translations")
     MovieTranslationsResult getTheTranslationsForAMovie(@PathVariable("movie_id") String movieId,
                                                         @RequestParam("api_key") String apiKey,
                                                         @RequestParam(value = "language", defaultValue = "en-US") String language
+    );
+
+
+    @GetMapping("/movie/{movie_id}")
+    MoviePageResponse getMoviePage(@PathVariable("movie_id") String movieId,
+                                   @RequestParam("api_key") String apiKey,
+                                   @RequestParam(value = "language", defaultValue = "tr-TR") String language,
+                                   @RequestParam("append_to_response") String appendToResponse
+
     );
 
 
@@ -128,7 +134,6 @@ public interface TmdbFeignClient {
     TvTranslationsResult getTheTranslationsForATv(@PathVariable("series_id") String tvId,
                                                   @RequestParam("api_key") String apiKey,
                                                   @RequestParam(value = "language", defaultValue = "tr-TR") String language);
-
 
 
 }

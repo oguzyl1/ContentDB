@@ -1,6 +1,6 @@
 # Content Management and Library System
 
-A platform for managing content (movies, series, etc.) with OMDb API integration and library features.
+A platform for managing content (movies, series, etc.) with OMDb API integration and userList features.
 
 ## 📌 Features
 
@@ -34,13 +34,13 @@ A platform for managing content (movies, series, etc.) with OMDb API integration
 
 | **Endpoint**                                 | **Method** | **Description**                  |
 |----------------------------------------------|------------|----------------------------------|
-| `/v1/library/create`                         | POST       | Create a new library             |
-| `/v1/library/getAll`                         | GET        | List all libraries               |
-| `/v1/library/{name}`                         | PUT        | Update library name              |
-| `/v1/library/{name}`                         | DELETE     | Delete a library                 |
-| `/v1/libraryContent/{libraryName}`           | PUT        | Add content to a library         |
-| `/v1/libraryContent/contentID/{libraryName}` | GET        | Get content IDs from a library   |
-| `/v1/libraryContent/{libraryName}`           | GET        | Get content cards from a library |
+| `/v1/userList/create`                         | POST       | Create a new userList             |
+| `/v1/userList/getAll`                         | GET        | List all libraries               |
+| `/v1/userList/{name}`                         | PUT        | Update userList name              |
+| `/v1/userList/{name}`                         | DELETE     | Delete a userList                 |
+| `/v1/userListContent/{libraryName}`           | PUT        | Add content to a userList         |
+| `/v1/userListContent/contentID/{libraryName}` | GET        | Get content IDs from a userList   |
+| `/v1/userListContent/{libraryName}`           | GET        | Get content cards from a userList |
 
 ---
 
@@ -50,7 +50,7 @@ A platform for managing content (movies, series, etc.) with OMDb API integration
 
 **Request:**
 
-`POST /v1/library/create`
+`POST /v1/userList/create`
 
 **Body:**
 
@@ -64,7 +64,7 @@ A platform for managing content (movies, series, etc.) with OMDb API integration
 
 **Request:**
 
-`PUT /v1/libraryContent/MyLibrary`
+`PUT /v1/userListContent/MyLibrary`
 
 **Body:**
 

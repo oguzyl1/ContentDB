@@ -9,6 +9,8 @@ import com.contentdb.authentication_service.request.InitiatePasswordResetRequest
 import com.contentdb.authentication_service.request.LoginRequest;
 import com.contentdb.authentication_service.request.ResetPasswordRequest;
 import com.contentdb.authentication_service.request.TokenResponse;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -31,7 +33,7 @@ public class AuthenticationService {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthenticationService.class);
     private static final int REFRESH_TOKEN_EXPIRY_DAYS = 7;
-    private static final long LOCK_TIME_DURATION_MINUTES = 30;
+    private static final long LOCK_TIME_DURATION_MINUTES = 1;
 
 
     private final UserRepository userRepository;
@@ -63,10 +65,10 @@ public class AuthenticationService {
      * @return Oluşturulan access ve refresh token.
      */
     @Transactional
-    public TokenResponse login(LoginRequest loginRequest) {
+    public TokenResponse login(LoginRequest loginRequest, HttpServletResponse response) {
 
         if (accountLockService.isAccountLocked(loginRequest.username())) {
-            throw new ThisAccountLockedException(LOCK_TIME_DURATION_MINUTES);
+            throw new ThisAccountLockedException("Hesabınız kitlendi" + LOCK_TIME_DURATION_MINUTES + " dakika sonra tekrar deneyin.");
         }
 
         logger.info("Kullanıcı girişi yapılmaya çalışılıyor: {}", loginRequest.username());
@@ -101,19 +103,30 @@ public class AuthenticationService {
                 refreshTokenRepository.save(newRefreshToken);
                 logger.info("Refresh token başarıyla oluştu: {}", refreshToken);
 
+
                 user.setLastLoginTime(LocalDateTime.now());
                 userRepository.save(user);
                 logger.info("Kullanıcı başarıyla giriş yaptı: {}", user.getUsername());
 
+                Cookie accessTokenCookie = new Cookie("access_token", accessToken);
+                accessTokenCookie.setHttpOnly(true);
+                accessTokenCookie.setSecure(false);
+                accessTokenCookie.setPath("/");
+                accessTokenCookie.setAttribute("SameSite", "Lax");
+                accessTokenCookie.setMaxAge(60 * 60); // 1 saat
+
+                logger.info("Cookie ekleniyor: " + accessTokenCookie.getName() + "=" + accessTokenCookie.getValue());
+                response.addCookie(accessTokenCookie);
 
                 return new TokenResponse(accessToken);
-            }
-            throw new AuthenticationFailedException();
 
+            } else {
+                throw new AuthenticationFailedException("Şifre veya kullanıcı adı hatalı. Lütfen tekrar deneyin.");
+            }
         } catch (BadCredentialsException e) {
             logger.info("Kullanıcı girişi başarısız oldu: {}", user.getUsername());
             accountLockService.incrementFailedAttempts(loginRequest.username());
-            throw new AuthenticationFailedException();
+            throw new AuthenticationFailedException("Giriş başarısız oldu.");
         }
 
     }
@@ -131,12 +144,12 @@ public class AuthenticationService {
         User user = (User) userDetails;
         String userId = user.getId();
 
-        RefreshToken refreshToken = refreshTokenRepository.findByUserId(userId).orElseThrow(UnauthorizedAccessException::new);
+        RefreshToken refreshToken = refreshTokenRepository.findByUserId(userId).orElseThrow(() -> new TokenNotFoundException("Token bulunamadı."));
 
         jwtService.validateRefreshToken(refreshToken.getToken());
 
         if (!jwtService.validateRefreshToken(refreshToken.getToken())) {
-            throw new InvalidTokenException();
+            throw new InvalidTokenException("Refresh token doğrulaması başarısız oldu.");
         }
 
         List<String> roles = userQueryService.getRolesByUser(user);
@@ -169,7 +182,7 @@ public class AuthenticationService {
 
         User user = userQueryService.findUserByEmail(initiatePasswordResetRequest.email());
 
-        String passwordResetToken = jwtService.generateResetToken(user.getUsername(),user.getId(),user.getEmail());
+        String passwordResetToken = jwtService.generateResetToken(user.getUsername(), user.getId(), user.getEmail());
 
         emailService.sendPasswordResetEmail(user.getEmail(), passwordResetToken);
         user.setResetTokenCreatedAt(LocalDateTime.now());
@@ -189,19 +202,19 @@ public class AuthenticationService {
     public void completePasswordReset(String resetToken, ResetPasswordRequest request) {
 
         if (!jwtService.validateResetToken(resetToken)) {
-            throw new InvalidTokenException();
+            throw new InvalidTokenException("Reset Token doğrulaması başarısız oldu.");
         }
 
         String userId = jwtService.extractUserId(resetToken);
-        User user = userRepository.findById(userId).orElseThrow(InvalidTokenException::new);
+        User user = userRepository.findById(userId).orElseThrow(() -> new UserNotFoundException("Kullanıcı bulunamadı."));
 
         if (user.getResetTokenCreatedAt() != null &&
                 user.getResetTokenCreatedAt().plusHours(24).isBefore(LocalDateTime.now())) {
-            throw new InvalidTokenException();
+            throw new InvalidTokenException("Süresi geçmiş veya geçersiz Reset Token.");
         }
 
         if (!request.newPassword().equals(request.newPasswordAgain())) {
-            throw new PasswordIsNotSameException();
+            throw new PasswordIsNotSameException("Girilen şifreler eşleşmiyor.");
         }
 
         if (!userQueryService.isValidPassword(request.newPassword())) {

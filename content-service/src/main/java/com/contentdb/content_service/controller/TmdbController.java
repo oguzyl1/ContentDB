@@ -5,6 +5,7 @@ import com.contentdb.content_service.client.dto.general.TmdbMultiSearchResponse;
 import com.contentdb.content_service.client.dto.general.TranslationsResponse;
 import com.contentdb.content_service.client.dto.movie.MovieCreditsResponse;
 import com.contentdb.content_service.client.dto.movie.MovieDetailResponse;
+import com.contentdb.content_service.client.dto.movie.MoviePageResponse;
 import com.contentdb.content_service.client.dto.series.TvAggregateCreditsResponse;
 import com.contentdb.content_service.client.dto.series.TvDetailResponse;
 import com.contentdb.content_service.client.dto.series.TvLatestCreditsResponse;
@@ -20,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/v1/content/tmdb")
+@RequestMapping("/api/content/tmdb")
 public class TmdbController {
 
     private static final Logger logger = LoggerFactory.getLogger(TmdbController.class);
@@ -93,6 +94,13 @@ public class TmdbController {
         logger.info("GET /v1/content/tmdb/movie/translations - movieId={}", movieId);
         List<TranslationsResponse> translations = tmdbService.getMovieTranslations(movieId);
         return ResponseEntity.ok(translations);
+    }
+
+    @GetMapping("/movie/page")
+    public ResponseEntity<MoviePageResponse> getMoviePage(@RequestParam String movieId) {
+        logger.info("GET /v1/content/tmdb/movie/page - movieId={}", movieId);
+        MoviePageResponse response = tmdbService.getMoviePage(movieId);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/tv/detail")

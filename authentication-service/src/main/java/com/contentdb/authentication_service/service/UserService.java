@@ -6,6 +6,7 @@ import com.contentdb.authentication_service.exception.UserNotFoundException;
 import com.contentdb.authentication_service.model.User;
 import com.contentdb.authentication_service.repository.UserRepository;
 import com.contentdb.authentication_service.request.*;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -40,13 +41,12 @@ public class UserService implements UserDetailsService {
         return user.orElseThrow(() -> new UserNotFoundException(username));
     }
 
-
     public UserDto getUserById(String id) {
         return userQueryService.getUserById(id);
     }
 
-    public TokenResponse login(LoginRequest loginRequest) {
-        return authenticationService.login(loginRequest);
+    public TokenResponse login(LoginRequest loginRequest, HttpServletResponse response) {
+        return authenticationService.login(loginRequest,response);
     }
 
     public Object updateUserInformation(String id, UpdateUserRequest request, boolean isAdmin) {

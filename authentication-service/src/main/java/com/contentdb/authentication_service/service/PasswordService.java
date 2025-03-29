@@ -53,11 +53,11 @@ public class PasswordService {
         jwtService.validateAccessToken();
 
         if (changePasswordRequest.newPassword().equals(changePasswordRequest.oldPassword())) {
-            throw new PasswordsCannotBeTheSameException();
+            throw new PasswordsCannotBeTheSameException("Yeni şifre eski şifre ile aynı olamaz.");
         }
 
         if (!bCryptPasswordEncoder.matches(changePasswordRequest.oldPassword(), user.getPassword())) {
-            throw new OldPasswordIsIncorrectException();
+            throw new OldPasswordIsIncorrectException("Eski şifre hatalı.");
         }
 
         if (!userQueryService.isValidPassword(changePasswordRequest.newPassword())) {

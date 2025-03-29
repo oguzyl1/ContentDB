@@ -3,6 +3,7 @@ package com.contentdb.authentication_service.controller;
 import com.contentdb.authentication_service.dto.UserDto;
 import com.contentdb.authentication_service.request.*;
 import com.contentdb.authentication_service.service.UserService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -32,9 +33,9 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<TokenResponse> login(@RequestBody @NotEmpty LoginRequest loginRequest) {
+    public ResponseEntity<TokenResponse> login(@RequestBody @NotEmpty LoginRequest loginRequest , HttpServletResponse response) {
         logger.info("POST /auth/login - Kullanıcı giriş yapıyor: {}", loginRequest.username());
-        return ResponseEntity.ok(userService.login(loginRequest));
+        return ResponseEntity.ok(userService.login(loginRequest,response));
     }
 
     @PostMapping("/password-reset/initiate")

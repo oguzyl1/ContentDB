@@ -10,7 +10,7 @@ public class PasswordIsWeakException extends BaseException {
                         " en az bir özel karakter içermelidir ve en az 8 ila 25 karakter" +
                         " uzunluğunda olmalıdır. Lütfen bu kurallara uygun şifre ile tekrar deneyin."
 
-                , "BAD_REQUEST",
+                , "BAD REQUEST",
                 HttpStatus.BAD_REQUEST);
     }
 }

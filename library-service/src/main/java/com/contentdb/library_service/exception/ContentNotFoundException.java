@@ -3,17 +3,9 @@ package com.contentdb.library_service.exception;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
-@ResponseStatus(value = HttpStatus.NOT_FOUND)
-public class ContentNotFoundException extends RuntimeException {
-    private final ExceptionMessage exceptionMessage;
+public class ContentNotFoundException extends BaseException {
 
-    public ContentNotFoundException(ExceptionMessage exceptionMessage) {
-        super(exceptionMessage.errorMessage());
-        this.exceptionMessage = exceptionMessage;
+    public ContentNotFoundException(String message) {
+        super(message, "NOT FOUND", HttpStatus.NOT_FOUND);
     }
-
-    public ExceptionMessage getExceptionMessage() {
-        return exceptionMessage;
-    }
-
 }

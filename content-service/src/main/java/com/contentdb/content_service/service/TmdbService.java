@@ -75,7 +75,6 @@ public class TmdbService {
     }
 
 
-
     /**
      * Verilen ID'ye göre bir filmin çeviri bilgilerini getiren metod.
      *
@@ -88,6 +87,19 @@ public class TmdbService {
         return validateResponse(response, "Film ID: " + movieId).getResults();
     }
 
+
+    public MoviePageResponse getMoviePage(String movieId) {
+        logger.info("TMDB API'ye istek yapılıyor: /getMoviePage, Film ID={}", movieId);
+
+        // API’den gelen ham cevabı alalım
+        MoviePageResponse response = tmdbFeignClient.getMoviePage(movieId, tmdbApiKey, "tr-TR", "credits,recommendations,translations");
+
+        // API'den dönen yanıtı logla
+        logger.info("TMDB API yanıtı: {}", response);
+
+        // Gelen yanıtı doğrula
+        return validateResponse(response, "Film ID: " + movieId);
+    }
 
     public TvDetailResponse getTvDetail(String tvId) {
         logger.info("TMDB API'ye istek yapılıyor: /getTvDetail, Dizi ID={}", tvId);

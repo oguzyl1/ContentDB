@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class AccountLockService {
 
-    private static final long LOCK_TIME_DURATION_MINUTES = 30;
+    private static final long LOCK_TIME_DURATION_MINUTES = 1;
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final String ROLE_ADMIN = "ROLE_ADMIN";
     private static final Logger logger = LoggerFactory.getLogger(AccountLockService.class);
@@ -114,7 +114,7 @@ public class AccountLockService {
                 .anyMatch(authority -> authority.toString().equals(ROLE_ADMIN));
 
         if (isAdmin && locked && userRepository.countAdmins() == 1) {
-            throw new UnauthorizedAccessException();
+            throw new UnauthorizedAccessException("Bu işlem için yetkiniz yok.");
         }
 
         user.setAccountNonLocked(!locked);

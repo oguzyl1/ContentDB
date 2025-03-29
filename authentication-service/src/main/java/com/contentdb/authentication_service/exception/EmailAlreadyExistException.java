@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 
 public class EmailAlreadyExistException extends BaseException {
 
-    public EmailAlreadyExistException(String email) {
-        super("Bu mail adresi kullanılmakta.", "CONFLICT", HttpStatus.CONFLICT);
+    public EmailAlreadyExistException(String message) {
+        super(message, "CONFLICT", HttpStatus.CONFLICT);
     }
 }

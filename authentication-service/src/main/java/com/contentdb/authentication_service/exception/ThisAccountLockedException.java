@@ -4,7 +4,7 @@ import org.springframework.http.HttpStatus;
 
 public class ThisAccountLockedException extends BaseException {
 
-    public ThisAccountLockedException(long time) {
-        super("Hesabınız kilitlendi. " + time + " dakika sonra tekrar deneyin.", "BAD_REQUEST", HttpStatus.BAD_REQUEST);
+    public ThisAccountLockedException(String message) {
+        super(message, "BAD REQUEST", HttpStatus.BAD_REQUEST);
     }
 }

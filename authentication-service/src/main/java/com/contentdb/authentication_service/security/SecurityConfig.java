@@ -1,9 +1,11 @@
 package com.contentdb.authentication_service.security;
 
+import com.contentdb.authentication_service.model.User;
 import com.contentdb.authentication_service.repository.RefreshTokenRepository;
 import com.contentdb.authentication_service.service.JwtService;
 import com.contentdb.authentication_service.service.RefreshTokenService;
 import com.contentdb.authentication_service.service.UserService;
+import jakarta.servlet.http.Cookie;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
@@ -16,11 +18,14 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
+import org.springframework.security.config.annotation.web.configurers.LogoutConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
+import org.springframework.web.cors.CorsConfiguration;
 
 @Configuration
 @EnableWebSecurity
@@ -65,24 +70,14 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configure(http))
-                .logout(logout -> logout
-                        .logoutUrl("/api/users/logout")
-                        .addLogoutHandler((request, response, authentication) -> {
-                            String authHeader = request.getHeader("Authorization");
-                            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                                String accessToken = authHeader.substring(7);
-                                tokenBlacklist.addToBlacklist(accessToken);
-
-                                String userId = jwtService.extractUserId(accessToken);
-                                if (userId != null) {
-                                    refreshTokenService.deleteRefreshTokenByUserId(userId);
-                                }
-                            }
-                        })
-                        .logoutSuccessHandler(new HttpStatusReturningLogoutSuccessHandler(HttpStatus.OK))
-                        .deleteCookies("refresh")
-                )
+                .cors(cors -> cors.configurationSource(request -> {
+                    CorsConfiguration config = new CorsConfiguration();
+                    config.addAllowedOriginPattern("*"); // Tüm origin'leri kabul et
+                    config.addAllowedMethod("*"); // Tüm HTTP metodlarına izin ver
+                    config.addAllowedHeader("*"); // Tüm header'ları kabul et
+                    config.setAllowCredentials(true);
+                    return config;
+                })).logout(this::configureLogout)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_URLS).permitAll()
                         .requestMatchers(ADMIN_URLS).hasRole("ADMIN")
@@ -95,6 +90,47 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
+
+
+    private void configureLogout(LogoutConfigurer<HttpSecurity> logout) {
+        logout
+                .logoutUrl("/api/users/logout")
+                .addLogoutHandler((request, response, authentication) -> {
+                    Cookie[] cookies = request.getCookies();
+                    String accessToken = null;
+                    if (cookies != null) {
+                        for (Cookie cookie : cookies) {
+                            if ("access_token".equals(cookie.getName())) {
+                                accessToken = cookie.getValue();
+                                break;
+                            }
+                        }
+                    }
+
+                    if (accessToken != null) {
+                        // Tokenı blacklist'e ekle
+                        tokenBlacklist.addToBlacklist(accessToken);
+
+                        // Kullanıcı kimliğini al (örneğin, JWT'den)
+                        String userId = jwtService.extractUserId(accessToken);
+
+                        if (userId != null) {
+                            // Refresh tokenı sil
+                            refreshTokenService.deleteRefreshTokenByUserId(userId);
+                        }
+
+                        // Cookieyi temizle
+                        Cookie accessTokenCookie = new Cookie("access_token", null);
+                        accessTokenCookie.setHttpOnly(true);
+                        accessTokenCookie.setSecure(true);
+                        accessTokenCookie.setMaxAge(0); // Cookieyi sil
+                        accessTokenCookie.setPath("/");
+                        response.addCookie(accessTokenCookie);
+                    }
+                })
+                .logoutSuccessHandler(new HttpStatusReturningLogoutSuccessHandler(HttpStatus.OK));
+    }
+
 
     @Bean
     public AuthenticationProvider authenticationProvider() {

@@ -102,7 +102,7 @@ public class UserQueryService {
      */
     public User findUserByEmail(String email) {
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new EmailNotFoundException(email));
+                .orElseThrow(() -> new EmailNotFoundException("Mail adresi bulunamadı."));
     }
 
 
@@ -135,7 +135,7 @@ public class UserQueryService {
                 .anyMatch(role -> role.getValue().equals(ROLE_ADMIN));
 
         if (!isCurrentUserAdmin) {
-            throw new UnauthorizedAccessException();
+            throw new UnauthorizedAccessException("Bu işlem için yetkiniz yok.");
         }
 
         long adminCount = userRepository.countAdmins();
@@ -144,7 +144,7 @@ public class UserQueryService {
                 newAuthorities.stream().noneMatch(role -> role.getValue().equals(ROLE_ADMIN));
 
         if (isLastAdmin) {
-            throw new UnauthorizedAccessException();
+            throw new UnauthorizedAccessException("Bu işlem için yetkiniz yok.");
         }
     }
 

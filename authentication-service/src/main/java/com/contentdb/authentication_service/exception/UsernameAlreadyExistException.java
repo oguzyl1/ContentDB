@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 
 public class UsernameAlreadyExistException extends BaseException {
 
-    public UsernameAlreadyExistException(String username) {
-        super("Bu kullanıcı adı kullanılmakta", "CONFLICT", HttpStatus.CONFLICT);
+    public UsernameAlreadyExistException(String message) {
+        super(message, "CONFLICT", HttpStatus.CONFLICT);
     }
 }

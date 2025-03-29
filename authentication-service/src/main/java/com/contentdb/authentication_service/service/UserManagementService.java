@@ -73,10 +73,10 @@ public class UserManagementService {
         userRepository.findByUsernameOrEmail(createUserRequest.username(), createUserRequest.email())
                 .ifPresent(user -> {
                     if (user.getUsername().equals(createUserRequest.username())) {
-                        throw new UsernameAlreadyExistException(createUserRequest.username());
+                        throw new UsernameAlreadyExistException("Bu kullanıcı adı zaten kullanılmakta.");
                     }
                     if (user.getEmail().equals(createUserRequest.email())) {
-                        throw new EmailAlreadyExistException(createUserRequest.email());
+                        throw new EmailAlreadyExistException("Bu mail adresi zaten kullanılmakta.");
                     }
                 });
 
@@ -102,7 +102,7 @@ public class UserManagementService {
         newUser.setCreatedAt(LocalDateTime.now());
 
         User savedUser = userRepository.save(newUser);
-        emailService.userCreated(savedUser.getEmail());
+        //emailService.userCreated(savedUser.getEmail());
         logger.info("Yeni kullanıcı oluşturuldu: {}", createUserRequest.username());
 
         return UserDto.convertToUserDto(savedUser);
@@ -128,7 +128,7 @@ public class UserManagementService {
         String currentUserId = currentUser.getId();
 
         if (!isAdminRequest && !currentUserId.equals(userId)) {
-            throw new UnauthorizedAccessException();
+            throw new UnauthorizedAccessException("Bu işlem için yetkiniz yok.");
         }
 
         logger.info("Kullanıcı bilgisi güncelleme işlemi başlatılıyor");
@@ -142,7 +142,7 @@ public class UserManagementService {
         if (newUsername != null && !existingUser.getUsername().equals(newUsername)) {
             userRepository.findByUsername(newUsername)
                     .ifPresent(user -> {
-                        throw new UsernameAlreadyExistException(newUsername);
+                        throw new UsernameAlreadyExistException("Bu kullanıcı adı zaten kullanılmakta.");
                     });
         }
         logger.info("Kullanıcı adı kontrolü yapıldı: {}", newUsername);
@@ -152,7 +152,7 @@ public class UserManagementService {
         if (newEmail != null && !existingUser.getEmail().equals(newEmail)) {
             userRepository.findByEmail(newEmail)
                     .ifPresent(user -> {
-                        throw new EmailAlreadyExistException(newEmail);
+                        throw new EmailAlreadyExistException("Bu mail adresi zaten kullanılmakta.");
                     });
         }
         logger.info("Mail kontrolü yapıldı: {}", newEmail);
@@ -241,13 +241,13 @@ public class UserManagementService {
                 .anyMatch(authority -> authority.toString().equals(ROLE_ADMIN));
 
         if (!isCurrentUserAdmin && !currentUser.getId().equals(userId)) {
-            throw new UnauthorizedAccessException();
+            throw new UnauthorizedAccessException("Bu işlem için yetkiniz yok.");
         }
 
         boolean isUserToDeleteAdmin = user.getAuthorities().stream()
                 .anyMatch(authority -> authority.toString().equals(ROLE_ADMIN));
         if (isUserToDeleteAdmin && userRepository.countAdmins() == 1) {
-            throw new UnauthorizedAccessException();
+            throw new UnauthorizedAccessException("Bu iişlem için yetkiniz yok.");
         }
 
         user.setDeleted(true);
@@ -279,7 +279,7 @@ public class UserManagementService {
         boolean willRemainAdmin = updateUserRolesRequest.newRoles().contains(ROLE_ADMIN);
 
         if (isAdmin && !willRemainAdmin && userRepository.countAdmins() == 1) {
-            throw new UnauthorizedAccessException();
+            throw new UnauthorizedAccessException("Bu işlem için yetkiniz yok.");
         }
 
         user.setAuthorities(updateUserRolesRequest.newRoles()

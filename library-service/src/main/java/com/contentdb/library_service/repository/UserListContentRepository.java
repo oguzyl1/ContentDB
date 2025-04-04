@@ -21,24 +21,4 @@ public interface UserListContentRepository extends JpaRepository<UserListContent
 
     List<UserListContent> findByUserListId(String id);
 
-//
-//    // Bonus: Kullanıcıya ait kütüphanelerden içerik sorgulama
-//    UserList<UserListContent> findByLibrary_UserIdAndContentId(String userId, String contentId);
-//
-//    // Bonus: Kütüphanedeki içerikleri sıralı getirme
-//    UserList<UserListContent> findByLibraryOrderByDisplayOrderAsc(UserList library);
-//
-//
-//    UserList<UserListContent> findByLibrary(UserList library);
-//
-//    UserList<UserListContent> findByLibraryId(Long libraryId);
-//
-//
-//    UserList<UserListContent> findByLibraryAndDisplayOrderBetween(UserList library, int startOrder, int endOrder);
-//
-//    Page<UserListContent> findByLibrary(UserList library, Pageable pageable);
-//
-//    void deleteByLibrary(UserList library);
-
-
 }

@@ -2,10 +2,10 @@ package com.contentdb.content_service.exception;
 
 import org.springframework.http.HttpStatus;
 
-public class CustomException extends RuntimeException {
+public class BaseException extends RuntimeException {
     private final HttpStatus status;
 
-    public CustomException(String message, HttpStatus status) {
+    public BaseException(String message, HttpStatus status) {
         super(message);
         this.status = status;
     }

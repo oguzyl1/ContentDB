@@ -11,8 +11,8 @@ import java.time.LocalDateTime;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(CustomException.class)
-    public ResponseEntity<ExceptionMessage> handleCustomException(CustomException ex, WebRequest request) {
+    @ExceptionHandler(BaseException.class)
+    public ResponseEntity<ExceptionMessage> handleCustomException(BaseException ex, WebRequest request) {
         return createErrorResponse(ex.getStatus(), ex.getMessage(), request.getDescription(false));
     }
 

@@ -27,9 +27,9 @@ public class AdminController {
         this.userService = userService;
     }
 
-    @GetMapping("/user/")
+    @GetMapping("/user/{userId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UserDto> getUserById(@NotEmpty @RequestParam String userId) {
+    public ResponseEntity<UserDto> getUserById(@NotEmpty @PathVariable String userId) {
         logger.info("GET /admin/user - Kullanıcı bilgileri getiriliyor");
         return ResponseEntity.ok(userService.getUserById(userId));
     }

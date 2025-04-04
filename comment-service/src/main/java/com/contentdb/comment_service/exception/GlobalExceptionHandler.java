@@ -1,4 +1,5 @@
-package com.contentdb.authentication_service.exception;
+package com.contentdb.comment_service.exception;
+
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -10,7 +11,6 @@ import java.time.LocalDateTime;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-
 
     @ExceptionHandler(BaseException.class)
     public ResponseEntity<ExceptionMessage> handleBaseException(BaseException ex, HttpServletRequest request) {
@@ -39,4 +39,3 @@ public class GlobalExceptionHandler {
     }
 
 }
-

@@ -70,16 +70,4 @@ public class UsersController {
         return ResponseEntity.ok(userService.refreshAccessToken(userDetails));
     }
 
-
-//    @GetMapping("/logout")
-//    @PreAuthorize("isAuthenticated()")
-//    public ResponseEntity<Void> logout(@AuthenticationPrincipal UserDetails userDetails) {
-//        User user = (User) userDetails;
-//        logger.info("GET /users/logout - Kullanıcı çıkış yapıyor: {}", userDetails.getUsername());
-//        userService.logout(user.getId());
-//        SecurityContextHolder.clearContext();
-//        logger.info("Çıkış işlemi başarılı");
-//        return ResponseEntity.ok().build();
-//    }
-
 }

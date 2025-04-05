@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/authentication-service/authentication-service.iml" filepath="$PROJECT_DIR$/authentication-service/authentication-service.iml" />
+      <module fileurl="file://$PROJECT_DIR$/comment-service/comment-service.iml" filepath="$PROJECT_DIR$/comment-service/comment-service.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/content-db.iml" filepath="$PROJECT_DIR$/.idea/content-db.iml" />
       <module fileurl="file://$PROJECT_DIR$/library-service/library-service.iml" filepath="$PROJECT_DIR$/library-service/library-service.iml" />
     </modules>

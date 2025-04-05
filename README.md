@@ -10,6 +10,7 @@ A platform for managing content (movies, series, etc.) with TMDB API integration
 - 🪪 **Authentication Service**: Manages all account transactions. Registration, login, logout, etc.
 - 🚪 **Gateway Service**: Handles API routing and load balancing.
 - 🗂️ **Eureka Server**: Manages service discovery and registration.
+- 💬 **Comment Service**: Allows users to comment on content.
 
 ## 💻 Technologies Used
 
@@ -79,66 +80,22 @@ secure access to the system by handling user registrations, login mechanisms, an
 4. **Token Expiration & Refresh**: Implements refresh token strategy to maintain user sessions.
 5. **CORS Policy**: Configured to allow cross-origin requests securely.
 
-## API Endpoints
+---
 
-### 🗂️ Content Service Endpoints
-
-| **Endpoint**                       | **Method** | **Description**                                   |
-|------------------------------------|------------|---------------------------------------------------|
-| `/v1/content/imdbId?title={title}` | GET        | Fetch IMDb ID by content title (e.g. "Inception") |
-| `/v1/content/poster?id={imdbId}`   | GET        | Fetch poster by IMDb ID                           |
-| `/v1/content/details?id={imdbId}`  | GET        | Fetch content details by IMDb ID                  |
-| `/v1/content/search?title={title}` | GET        | Search contents by title                          |
-
-### 📚 Library Service Endpoints
-
-| **Endpoint**                                  | **Method** | **Description**                   |
-|-----------------------------------------------|------------|-----------------------------------|
-| `/v1/userList/create`                         | POST       | Create a new userList             |
-| `/v1/userList/getAll`                         | GET        | List all libraries                |
-| `/v1/userList/{name}`                         | PUT        | Update userList name              |
-| `/v1/userList/{name}`                         | DELETE     | Delete a userList                 |
-| `/v1/userListContent/{libraryName}`           | PUT        | Add content to a userList         |
-| `/v1/userListContent/contentID/{libraryName}` | GET        | Get content IDs from a userList   |
-| `/v1/userListContent/{libraryName}`           | GET        | Get content cards from a userList |
+## 🎥 Content Service
 
 ---
 
-## Example Requests
+## 📚 Library Service
 
-### Create a New Library
+--- 
 
-**Request:**
-
-`POST /v1/userList/create`
-
-**Body:**
-
-```json
-{
-  "name": "MyLibrary"
-}
-```
-
-### Create a New Library
-
-**Request:**
-
-`PUT /v1/userListContent/MyLibrary`
-
-**Body:**
-
-```json
-{
-  "title": "Inception"
-}
-```
+## 🚪 Gateway
 
 ---
 
-## 🔮 Future Plans
+## 💬 Comment Service
 
-- User authentication and authorization services
-- AI-based content recommendations
+--- 
 
-
+## ️🗂️ Eureka Server

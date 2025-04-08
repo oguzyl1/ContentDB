@@ -67,11 +67,4 @@ public class UserListContentController {
         return ResponseEntity.ok(userListContentService.getContentCardsFromUserList(listName, userId));
     }
 
-    @GetMapping("/get/page/{contentId}")
-    public ResponseEntity<Object> getContentPage(@PathVariable String contentId) {
-        logger.info("GET /get/page/{} - içeriğin sayfası getiriliyor", contentId);
-        return ResponseEntity.ok(userListContentService.getContentPage(contentId));
-    }
-
-
 }

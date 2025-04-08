@@ -1,5 +1,6 @@
 package com.contentdb.comment_service.service;
 
+import com.contentdb.comment_service.component.CommentValidator;
 import com.contentdb.comment_service.dto.CommentDto;
 import com.contentdb.comment_service.exception.*;
 import com.contentdb.comment_service.model.Comment;
@@ -22,9 +23,11 @@ public class CommentService {
     private static final Logger logger = LoggerFactory.getLogger(CommentService.class);
 
     private final CommentRepository commentRepository;
+    private final CommentValidator validator;
 
-    public CommentService(CommentRepository commentRepository) {
+    public CommentService(CommentRepository commentRepository, CommentValidator validator) {
         this.commentRepository = commentRepository;
+        this.validator = validator;
     }
 
 
@@ -32,8 +35,8 @@ public class CommentService {
     public CommentDto addComment(CommentRequest request, String contentId, String userId) {
 
         logger.info("{} id'li Kullanıcı {} içeriğine yorum ekliyor", userId, contentId);
-        userIdControl(userId);
-        contentIdControl(contentId);
+        validator.userIdControl(userId);
+        validator.contentIdControl(contentId);
 
         Comment comment = Comment.builder().comment(request.comment()).userId(userId).contentId(contentId).parentComment(null).build();
 
@@ -43,8 +46,8 @@ public class CommentService {
     @Transactional
     public CommentDto replyToComment(CommentRequest request, String parentCommentId, String userId) {
         logger.info("{} id'li kullanıcı {} id'li yoruma yanıt veriyor", userId, parentCommentId);
-        userIdControl(userId);
-        parenCommentControl(parentCommentId);
+        validator.userIdControl(userId);
+        validator.parenCommentControl(parentCommentId);
 
         Comment parentComment = commentRepository.findById(parentCommentId).orElseThrow(() -> new ParenCommentIdNotFoundException("Yanıt verilecek yorum bulunamadı."));
 
@@ -57,7 +60,7 @@ public class CommentService {
     @Transactional(readOnly = true)
     public Map<String, Object> getCommentsWithReplies(String contentId) {
 
-        List<Comment> allComments = commentRepository.findByContentIdAndDeletedFalse(contentId);
+        List<Comment> allComments = commentRepository.findByContentIdAndIsDeletedFalse(contentId);
 
         List<Comment> topLevelComments = allComments
                 .stream()
@@ -93,8 +96,8 @@ public class CommentService {
     public CommentDto updateComment(CommentRequest request, String commentId, String userId) {
 
         logger.info("{} id'li kullanıcı , {} id'li yorumunu güncelliyor ", userId, commentId);
-        userIdControl(userId);
-        commentIdControl(commentId);
+        validator.userIdControl(userId);
+        validator.commentIdControl(commentId);
 
         Comment currentComment = commentRepository.findById(commentId).orElseThrow(() -> new CommentNotFoundException("Yorum bulunamadı."));
 
@@ -104,7 +107,7 @@ public class CommentService {
             throw new UserIdNotSameException("Sadece yorumun sahibi tarafından güncellenebilir.");
         }
 
-        if (currentComment.getDeleted()) {
+        if (currentComment.getIsDeleted()) {
             logger.error("Kullanıcının güncellemek istediği yorum silinmiş.");
             throw new CommentDeletedException("Silinmiş yorum güncellenemez.");
         }
@@ -119,8 +122,8 @@ public class CommentService {
     public void deleteComment(String commentId, String userId) {
 
         logger.info("{} id'li kullanıcı, {} id'li yorumunu siliyor", userId, commentId);
-        userIdControl(userId);
-        commentIdControl(commentId);
+        validator.userIdControl(userId);
+        validator.commentIdControl(commentId);
 
 
         Comment comment = commentRepository.findById(commentId)
@@ -131,7 +134,7 @@ public class CommentService {
             throw new UserIdNotSameException("Bu yorumu silmeye yetkiniz yok.");
         }
 
-        comment.setDeleted(true);
+        comment.setIsDeleted(true);
         commentRepository.save(comment);
 
         logger.info("Kullanıcı {} yorum {} silindi olarak işaretlendi.", userId, commentId);
@@ -140,7 +143,7 @@ public class CommentService {
             List<Comment> replies = commentRepository.findByParentCommentId(commentId);
 
             for (Comment reply : replies) {
-                reply.setDeleted(true);
+                reply.setIsDeleted(true);
                 logger.info("Yanıt yorum {} silindi olarak işaretlendi.", reply.getId());
             }
 
@@ -152,53 +155,23 @@ public class CommentService {
 
     @Transactional(readOnly = true)
     public List<CommentDto> getRepliesOfComment(String parentCommentId) {
-        parenCommentControl(parentCommentId);
+        validator.parenCommentControl(parentCommentId);
 
-        List<Comment> replies = commentRepository.findByParentCommentIdAndDeletedFalse(parentCommentId);
+        List<Comment> replies = commentRepository.findByParentCommentIdAndIsDeletedFalse(parentCommentId);
 
         return replies.stream()
                 .map(CommentDto::convertToCommentDto)
                 .collect(Collectors.toList());
     }
 
+
     @Transactional(readOnly = true)
     public List<CommentDto> getUserComments(String userId) {
-        userIdControl(userId);
-        List<Comment> comments = commentRepository.findByUserIdAndDeletedFalse(userId);
+        validator.userIdControl(userId);
+        List<Comment> comments = commentRepository.findByUserIdAndIsDeletedFalse(userId);
         return comments.stream()
                 .map(CommentDto::convertToCommentDto)
                 .collect(Collectors.toList());
     }
-
-
-
-    private void userIdControl(String userId) {
-        if (userId == null || userId.isEmpty()) {
-            logger.error("UserId boş geliyor: {}", userId);
-            throw new EmptyException("Kullanıcı kimliği belirtilmemiş.");
-        }
-    }
-
-    private void contentIdControl(String contentId) {
-        if (contentId == null || contentId.isEmpty()) {
-            logger.error("Content Id boş geliyor : {}", contentId);
-            throw new EmptyException("İçerik kimliği belirtilmememiş.");
-        }
-    }
-
-    private void commentIdControl(String commentId) {
-        if (commentId == null || commentId.isEmpty()) {
-            logger.error("Comment Id boş geliyor : {}", commentId);
-            throw new EmptyException("Güncellenmek istenen yorumun kimliği belirtilmemiş.");
-        }
-    }
-
-    private void parenCommentControl(String parentCommentId) {
-        if (parentCommentId == null || parentCommentId.isEmpty()) {
-            logger.error("ParentCommentId boş geliyor: {}", parentCommentId);
-            throw new EmptyException("Yanıt verilen yorum kimliği belirtilmemiş");
-        }
-    }
-
 
 }

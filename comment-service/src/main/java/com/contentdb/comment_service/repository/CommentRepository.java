@@ -9,11 +9,11 @@ import java.util.List;
 @Repository
 public interface CommentRepository extends JpaRepository<Comment, String> {
 
-    List<Comment> findByContentIdAndDeletedFalse(String contentId);
+    List<Comment> findByContentIdAndIsDeletedFalse(String contentId);
 
     List<Comment> findByParentCommentId(String commentId);
 
-    List<Comment> findByParentCommentIdAndDeletedFalse(String parentCommentId);
+    List<Comment> findByParentCommentIdAndIsDeletedFalse(String parentCommentId);
 
-    List<Comment> findByUserIdAndDeletedFalse(String userId);
+    List<Comment> findByUserIdAndIsDeletedFalse(String userId);
 }

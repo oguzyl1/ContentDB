@@ -35,6 +35,21 @@ spring:
           predicates:
             - Path=/api/users/**
 
+        - id: comment-service-comment
+          uri : lb://comment-service
+          predicates:
+            - Path=/api/comment/**
+
+        - id: comment-service-interaction
+          uri: lb://comment-service
+          predicates:
+            - Path=/api/interaction/**
+
+        - id: content-page-service
+          uri: lb://content-page-service
+          predicates:
+            - Path=/api/page/**
+
       discovery:
         locator:
           enabled: true

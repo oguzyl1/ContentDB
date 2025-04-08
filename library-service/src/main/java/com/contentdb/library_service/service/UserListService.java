@@ -1,9 +1,9 @@
 package com.contentdb.library_service.service;
 
+import com.contentdb.library_service.component.UserListValidator;
 import com.contentdb.library_service.dto.user_list.UserListDto;
 import com.contentdb.library_service.exception.ListAlreadyExistException;
 import com.contentdb.library_service.exception.ListNotFoundException;
-import com.contentdb.library_service.exception.UserIdEmptyException;
 import com.contentdb.library_service.model.UserList;
 import com.contentdb.library_service.repository.UserListRepository;
 import com.contentdb.library_service.request.CreateLibraryRequest;
@@ -24,9 +24,11 @@ public class UserListService {
 
     private static final Logger logger = LoggerFactory.getLogger(UserListService.class);
     private final UserListRepository userListRepository;
+    private final UserListValidator validator;
 
-    public UserListService(UserListRepository userListRepository) {
+    public UserListService(UserListRepository userListRepository, UserListValidator validator) {
         this.userListRepository = userListRepository;
+        this.validator = validator;
     }
 
 
@@ -34,7 +36,7 @@ public class UserListService {
     public UserListDto createList(CreateLibraryRequest request, String userId) {
 
         logger.info("Liste Oluşturuluyor.");
-        userIdControl(userId);
+        validator.userIdControl(userId);
 
         Optional<UserList> existingLibrary = userListRepository.findByNameAndUserId(request.name(), userId);
         logger.info("Listenin var olup olmadığı kontrol edildi. Sonuç: {}", existingLibrary.isPresent());
@@ -63,7 +65,7 @@ public class UserListService {
 
         logger.info("Listenin görünürlüğü değiştiriliyor: {} {}", listName, isPublic);
 
-        userIdControl(userId);
+        validator.userIdControl(userId);
 
         UserList list = userListRepository.findByNameAndUserId(listName, userId)
                 .orElseThrow(() -> new ListNotFoundException("Aranan liste bulunamadı."));
@@ -80,7 +82,7 @@ public class UserListService {
     public List<UserListDto> getPublicLists(String userId) {
 
         logger.info("Kullanıcının public olan listleri getiriliyor.");
-        userIdControl(userId);
+        validator.userIdControl(userId);
 
         List<UserList> lists = userListRepository.findByUserIdAndIsPublicTrue(userId);
 
@@ -99,7 +101,7 @@ public class UserListService {
     public List<UserListDto> getAllLists(String userId) {
 
         logger.info("Kullanıcının tüm listeleri getiriliyor.");
-        userIdControl(userId);
+        validator.userIdControl(userId);
 
         List<UserList> lists = userListRepository.findByUserId(userId);
 
@@ -119,7 +121,7 @@ public class UserListService {
 
         logger.info("Kulllanıcnın aranan listesi getiriliyor: {}", listName);
 
-        userIdControl(userId);
+        validator.userIdControl(userId);
 
         UserList searchedUserList = userListRepository.findByNameAndUserId(listName, userId)
                 .orElseThrow(() -> new ListNotFoundException("Bu isme sahip liste bulunamadı"));
@@ -133,7 +135,7 @@ public class UserListService {
 
         logger.info("Kullanıcı listesini güncelliyor: {}", current);
 
-        userIdControl(userId);
+        validator.userIdControl(userId);
 
         UserList userList = userListRepository.findByNameAndUserId(current, userId)
                 .orElseThrow(() -> new ListNotFoundException("Güncelleme yapmak istediğiniz liste bulunamadı"));
@@ -165,7 +167,7 @@ public class UserListService {
 
         logger.info("Kullanıcının listesi siliniyor: {}", listName);
 
-        userIdControl(userId);
+        validator.userIdControl(userId);
 
         UserList userList = userListRepository.findByNameAndUserId(listName, userId)
                 .orElseThrow(() -> new ListNotFoundException("Silinmek istenen liste bulunamadı"));
@@ -202,7 +204,7 @@ public class UserListService {
 
         logger.info("Listenin içerik sayısı getiriliyor: {}", listName);
 
-        userIdControl(userId);
+        validator.userIdControl(userId);
 
         UserList list = userListRepository.findByNameAndUserId(listName, userId)
                 .orElseThrow(() -> new ListNotFoundException("Bu isimde bir liste bulunamadı"));
@@ -214,7 +216,7 @@ public class UserListService {
     public void increaseContentCount(String listName, String userId) {
         logger.info("Listenin içerik sayısı artırılıyor: {}", listName);
 
-        userIdControl(userId);
+        validator.userIdControl(userId);
 
         UserList list = userListRepository.findByNameAndUserId(listName, userId)
                 .orElseThrow(() -> new ListNotFoundException("Bu isimde bir liste bulunamadı"));
@@ -228,7 +230,7 @@ public class UserListService {
     public void decreaseContentCount(String listName, String userId) {
         logger.info("Listenin içerik sayısı azaltılıyor: {}", listName);
 
-        userIdControl(userId);
+        validator.userIdControl(userId);
 
         UserList list = userListRepository.findByNameAndUserId(listName, userId)
                 .orElseThrow(() -> new ListNotFoundException("Bu isimde bir liste bulunamadı"));
@@ -239,11 +241,5 @@ public class UserListService {
         }
     }
 
-    private void userIdControl(String userId) {
-        if (userId == null || userId.isEmpty()) {
-            logger.error("UserId boş geliyor: {}", userId);
-            throw new UserIdEmptyException("Kullanıcı kimliği belirtilmemiş");
-        }
-    }
 
 }

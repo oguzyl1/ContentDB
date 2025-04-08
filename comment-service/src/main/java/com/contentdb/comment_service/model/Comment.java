@@ -29,7 +29,7 @@ public class Comment {
     @Column(name = "like_count")
     private Integer likeCount = 0;
 
-    @Column(name = "disslike_count" )
+    @Column(name = "dislike_count")
     private Integer dislikeCount = 0;
 
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -53,7 +53,7 @@ public class Comment {
         this.userId = builder.userId;
         this.contentId = builder.contentId;
         this.likeCount = builder.likeCount;
-        this.dislikeCount= builder.dislikeCount;
+        this.dislikeCount = builder.dislikeCount;
         this.parentComment = builder.parentComment;
         this.isDeleted = builder.isDeleted;
     }
@@ -123,7 +123,6 @@ public class Comment {
         return new Builder();
     }
 
-
     public String getId() {
         return id;
     }
@@ -160,16 +159,16 @@ public class Comment {
         return dislikeCount;
     }
 
-    public Boolean getDeleted() {
+    public void setDislikeCount(Integer dislikeCount) {
+        this.dislikeCount = dislikeCount;
+    }
+
+    public Boolean getIsDeleted() {
         return isDeleted;
     }
 
-    public void setDeleted(Boolean deleted) {
-        isDeleted = deleted;
-    }
-
-    public void setDislikeCount(Integer dislikeCount) {
-        this.dislikeCount = dislikeCount;
+    public void setIsDeleted(Boolean isDeleted) {
+        this.isDeleted = isDeleted;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -187,7 +186,6 @@ public class Comment {
     public void setParentComment(Comment parentComment) {
         this.parentComment = parentComment;
     }
-
 
     @Override
     public String toString() {
@@ -209,7 +207,11 @@ public class Comment {
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
         Comment comment1 = (Comment) o;
-        return Objects.equals(id, comment1.id) && Objects.equals(comment, comment1.comment) && Objects.equals(userId, comment1.userId) && Objects.equals(contentId, comment1.contentId) && Objects.equals(likeCount, comment1.likeCount) && Objects.equals(dislikeCount, comment1.dislikeCount) && Objects.equals(createdAt, comment1.createdAt) && Objects.equals(updatedAt, comment1.updatedAt) && Objects.equals(isDeleted, comment1.isDeleted) && Objects.equals(parentComment, comment1.parentComment);
+        return Objects.equals(id, comment1.id) && Objects.equals(comment, comment1.comment) &&
+                Objects.equals(userId, comment1.userId) && Objects.equals(contentId, comment1.contentId) &&
+                Objects.equals(likeCount, comment1.likeCount) && Objects.equals(dislikeCount, comment1.dislikeCount) &&
+                Objects.equals(createdAt, comment1.createdAt) && Objects.equals(updatedAt, comment1.updatedAt) &&
+                Objects.equals(isDeleted, comment1.isDeleted) && Objects.equals(parentComment, comment1.parentComment);
     }
 
     @Override

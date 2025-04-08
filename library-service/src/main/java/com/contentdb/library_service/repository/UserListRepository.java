@@ -18,8 +18,6 @@ public interface UserListRepository extends JpaRepository<UserList, String> {
     @Query("SELECT l FROM UserList l WHERE l.userId = :userId AND l.isPublic = true")
     List<UserList> findByUserIdAndIsPublicTrue(String userId);
 
-    List<UserList> findTop10ByOrderByPopularityDesc();
-
     Optional<UserList> findByName(String listName);
 
     List<UserList> findTop10ByIsPublicTrueOrderByPopularityDesc();

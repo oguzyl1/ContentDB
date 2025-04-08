@@ -1,11 +1,12 @@
-package com.contentdb.library_service.dto.user_list_content;
+package com.contentdb.content_page_service.dto;
 
-import com.contentdb.library_service.client.dto.general.RecommendationResponse;
-import com.contentdb.library_service.client.dto.general.TranslationsResponse;
-import com.contentdb.library_service.client.dto.movie.MovieCreditsResponse;
-import com.contentdb.library_service.client.dto.movie.MovieDetailResponse;
+import com.contentdb.content_page_service.client.content.dto.general.RecommendationResponse;
+import com.contentdb.content_page_service.client.content.dto.general.TranslationsResponse;
+import com.contentdb.content_page_service.client.content.dto.movie.MovieCreditsResponse;
+import com.contentdb.content_page_service.client.content.dto.movie.MovieDetailResponse;
 
 import java.util.List;
+import java.util.Map;
 
 public class MoviePageDto {
 
@@ -13,15 +14,21 @@ public class MoviePageDto {
     private MovieCreditsResponse credits;
     private List<RecommendationResponse> recommendations;
     private List<TranslationsResponse> translations;
+    private Map<String, Object> comment;
 
     public MoviePageDto() {
     }
 
-    public MoviePageDto(MovieDetailResponse details, MovieCreditsResponse credits, List<RecommendationResponse> recommendations, List<TranslationsResponse> translations) {
+    public MoviePageDto(MovieDetailResponse details, MovieCreditsResponse credits, List<RecommendationResponse> recommendations, List<TranslationsResponse> translations, Map<String, Object> comment) {
         this.details = details;
         this.credits = credits;
         this.recommendations = recommendations;
         this.translations = translations;
+        this.comment = comment;
+    }
+
+    public Map<String, Object> getComment() {
+        return comment;
     }
 
     public MovieDetailResponse getDetails() {

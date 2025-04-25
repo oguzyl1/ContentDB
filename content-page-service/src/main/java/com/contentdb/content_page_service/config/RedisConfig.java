@@ -1,4 +1,4 @@
-package com.contentdb.content_service.config;
+package com.contentdb.content_page_service.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,14 +11,12 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import java.time.Duration;
 
-
 @Configuration
 public class RedisConfig {
-
     @Bean
     public RedisCacheConfiguration cacheConfiguration() {
         return RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofHours(24))
+                .entryTtl(Duration.ofHours(24)) // Önbellek ömrü 24 saat
                 .disableCachingNullValues()
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer()));
@@ -30,4 +28,6 @@ public class RedisConfig {
                 .cacheDefaults(cacheConfiguration())
                 .build();
     }
+
+
 }

@@ -9,7 +9,6 @@ import com.contentdb.content_page_service.client.content.dto.movie.MovieDetailRe
 import com.contentdb.content_page_service.client.content.dto.series.TvAggregateCreditsResponse;
 import com.contentdb.content_page_service.client.content.dto.series.TvDetailResponse;
 import com.contentdb.content_page_service.client.content.dto.series.TvLatestCreditsResponse;
-import com.contentdb.content_page_service.component.ContentPageValidator;
 import com.contentdb.content_page_service.dto.MoviePageDto;
 import com.contentdb.content_page_service.dto.TvPageDto;
 import com.contentdb.content_page_service.exception.ContentNotFoundException;
@@ -26,27 +25,23 @@ import java.util.concurrent.Executors;
 public class ContentPageService {
 
     private final ContentServiceClient contentServiceClient;
-    private final ContentPageValidator validator;
     private final CommentServiceClient commentServiceClient;
 
     private final ExecutorService executorService = Executors.newFixedThreadPool(
             Math.max(16, Runtime.getRuntime().availableProcessors() * 4));
 
 
-
-    public ContentPageService(ContentServiceClient contentServiceClient, ContentPageValidator validator, CommentServiceClient commentServiceClient) {
+    public ContentPageService(ContentServiceClient contentServiceClient, CommentServiceClient commentServiceClient) {
         this.contentServiceClient = contentServiceClient;
-        this.validator = validator;
         this.commentServiceClient = commentServiceClient;
     }
 
 
-    public Object getContentPage(String contentId) {
-        String type = validator.getMediaTypeByContentId(contentId);
+    public Object getContentPage(String contentId, String mediaType) {
 
-        if (type.equals("movie")) {
+        if ("movie".equals(mediaType)) {
             return getMoviePage(contentId);
-        } else if (type.equals("tv")) {
+        } else if ("tv".equals(mediaType)) {
             return getTvPage(contentId);
         }
 
@@ -73,8 +68,8 @@ public class ContentPageService {
             CompletableFuture<List<TranslationsResponse>> translationFuture = CompletableFuture.supplyAsync(() ->
                     contentServiceClient.getTvTranslations(tvId).getBody(), executorService);
 
-            CompletableFuture<Map<String, Object>> commentFuture = CompletableFuture.supplyAsync(()->
-                    commentServiceClient.getComment(tvId).getBody(),executorService);
+            CompletableFuture<Map<String, Object>> commentFuture = CompletableFuture.supplyAsync(() ->
+                    commentServiceClient.getComment(tvId).getBody(), executorService);
 
             CompletableFuture.allOf(detailFuture,
                             aggregateCreditsFuture,
@@ -115,8 +110,8 @@ public class ContentPageService {
             CompletableFuture<List<TranslationsResponse>> translationsFuture = CompletableFuture.supplyAsync(() ->
                     contentServiceClient.getMovieTranslations(movieId).getBody(), executorService);
 
-            CompletableFuture<Map<String,Object>> commentFuture = CompletableFuture.supplyAsync(()->
-                    commentServiceClient.getComment(movieId).getBody(),executorService);
+            CompletableFuture<Map<String, Object>> commentFuture = CompletableFuture.supplyAsync(() ->
+                    commentServiceClient.getComment(movieId).getBody(), executorService);
 
 
             CompletableFuture.allOf(detailFuture,

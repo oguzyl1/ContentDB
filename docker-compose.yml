@@ -1,0 +1,111 @@
+version: '3.8'
+services:
+  redis:
+    image: redis:latest
+    command: redis-server --requirepass "redis123"
+    ports:
+    - "6379:6379"
+
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 12345
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  eureka-server:
+    build: ./euraka-server
+    ports:
+      - "8761:8761"
+    environment:
+      - SPRING_PROFILES_ACTIVE=default
+
+  gateway-service:
+    build: ./gateway
+    ports:
+      - "8888:8888"
+    depends_on:
+      - eureka-server
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - JWT_PRIVATE_KEY="MIICWgIBAAKBgFb27XQSC3yZmI78YrZm5r68HXPNWl3JzIVxKXrGwrLQhh/EwOaxjuj/a7mVCaTqQ1PbOIEtTSCP8FqibBmgOhemtoONZgN4qHSQ16kOoGCGsxfri/WHHwyprfd8621uehYWP3NnGZzKEwvRq8HvVgmXbvGZNRUJKb+XCbp5dlFDAgMBAAECgYAowIffh4E4f2WdQ6oiXbAtm0uV85owLxuXQMM2VKPyVYM0qefXc0dL6j2Z9rxROrIYPreI2Si2ZJ02a7yKeaoe1GzTOAVECkJwtdctn29yiNSZlI+gmOdlDu0PWbV3V05fY05lKTO6/16s4hAe07HBmGqeWkJycN9IhV+4yBc1kQJBAKdrsiR1mqEo9Uqg2tIaYoividt0j6lchSvdHHzmPzvQacPk+VNuSq+wXWqC/1yA76URr3Vq8RK9JLntl9PhytkCQQCE+djlkDBt4Te7+5wCHTHuHc8n1Hf5t9fWW4KtFtGMMyHzU9AMCvr8K8eczujeohNeTW4+0v7doKq6w7VIcdN7AkBpPJX2uwHeqas+JMxHYxRqzMR/8M3Y7HI9NziP/f7jb0b8PvLGEb7anqapq/wuPlHk1bAPw5ATclcilAlqwzRJAkBb3CEKjK336gJPeQQPrc1lOfB2Cl+LAYY3zWWbXs0JNfV5G2f4OcmiVDgDyieyTHJmzcSf37AyuB/Y/wOHdSJrAkB0diouI830EjlPpIx/7BQ2M4OQdWohLc20JbxsYS2yvdvcaZKhktG07KJg23J2OQsnKCa7dWs0Rh6fpQ4owVBV"
+
+
+  authentication-service:
+    build: ./authentication-service
+    depends_on:
+      - redis
+      - postgres
+      - eureka-server
+    environment:
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATA_REDIS_PASSWORD=redis123
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/auth-service
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=12345
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_MAIL_PASSWORD=
+      - JWT_PRIVATE_KEY="MIICWgIBAAKBgFb27XQSC3yZmI78YrZm5r68HXPNWl3JzIVxKXrGwrLQhh/EwOaxjuj/a7mVCaTqQ1PbOIEtTSCP8FqibBmgOhemtoONZgN4qHSQ16kOoGCGsxfri/WHHwyprfd8621uehYWP3NnGZzKEwvRq8HvVgmXbvGZNRUJKb+XCbp5dlFDAgMBAAECgYAowIffh4E4f2WdQ6oiXbAtm0uV85owLxuXQMM2VKPyVYM0qefXc0dL6j2Z9rxROrIYPreI2Si2ZJ02a7yKeaoe1GzTOAVECkJwtdctn29yiNSZlI+gmOdlDu0PWbV3V05fY05lKTO6/16s4hAe07HBmGqeWkJycN9IhV+4yBc1kQJBAKdrsiR1mqEo9Uqg2tIaYoividt0j6lchSvdHHzmPzvQacPk+VNuSq+wXWqC/1yA76URr3Vq8RK9JLntl9PhytkCQQCE+djlkDBt4Te7+5wCHTHuHc8n1Hf5t9fWW4KtFtGMMyHzU9AMCvr8K8eczujeohNeTW4+0v7doKq6w7VIcdN7AkBpPJX2uwHeqas+JMxHYxRqzMR/8M3Y7HI9NziP/f7jb0b8PvLGEb7anqapq/wuPlHk1bAPw5ATclcilAlqwzRJAkBb3CEKjK336gJPeQQPrc1lOfB2Cl+LAYY3zWWbXs0JNfV5G2f4OcmiVDgDyieyTHJmzcSf37AyuB/Y/wOHdSJrAkB0diouI830EjlPpIx/7BQ2M4OQdWohLc20JbxsYS2yvdvcaZKhktG07KJg23J2OQsnKCa7dWs0Rh6fpQ4owVBV"
+  content-service:
+    build: ./content-service
+    depends_on:
+      - redis
+      - eureka-server
+    environment:
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATA_REDIS_PASSWORD=redis123
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - TMDB_API_KEY=
+
+  comment-service:
+    build: ./comment-service
+    depends_on:
+      - redis
+      - postgres
+      - eureka-server
+    environment:
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATA_REDIS_PASSWORD=redis123
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/comment-service
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=12345
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+
+  content-page-service:
+    build: ./content-page-service
+    depends_on:
+      - redis
+      - eureka-server
+      - content-service
+      - comment-service
+    environment:
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATA_REDIS_PASSWORD=redis123
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+
+  library-service:
+    build: ./library-service
+    depends_on:
+      - redis
+      - postgres
+      - eureka-server
+      - content-service
+    environment:
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATA_REDIS_PASSWORD=redis123
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/library-service
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=12345
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+
+volumes:
+  postgres-data:

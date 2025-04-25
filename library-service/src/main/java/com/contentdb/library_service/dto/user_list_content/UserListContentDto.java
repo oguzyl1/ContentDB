@@ -1,10 +1,12 @@
 package com.contentdb.library_service.dto.user_list_content;
 
 import com.contentdb.library_service.model.UserListContent;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 import java.time.LocalDateTime;
 
-public class UserListContentDto {
+
+public class UserListContentDto  {
 
     private String id;
     private String listId;

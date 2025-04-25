@@ -5,6 +5,9 @@ import com.contentdb.authentication_service.model.User;
 
 import java.util.Set;
 
+// serileştirmeleri kaldır bir daha dene hata aldın
+
+
 public class UserDto {
 
     private String id;
@@ -28,7 +31,7 @@ public class UserDto {
     public UserDto() {
     }
 
-    public UserDto(String id,String name, String lastName, String email, String username,Set<Role> authorities) {
+    public UserDto(String id, String name, String lastName, String email, String username, Set<Role> authorities) {
         this.id = id;
         this.name = name;
         this.lastName = lastName;

@@ -1,6 +1,8 @@
 package com.contentdb.library_service.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -12,6 +14,7 @@ import java.time.LocalDateTime;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(BaseException.class)
     public ResponseEntity<ExceptionMessage> handleBaseException(BaseException ex, HttpServletRequest request) {
@@ -28,6 +31,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ExceptionMessage> handleGenericException(Exception ex, HttpServletRequest request) {
+
+        logger.error("🛑 Unhandled exception for path {}: ", request.getRequestURI(), ex);
         ExceptionMessage response = new ExceptionMessage(
                 LocalDateTime.now(),
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),

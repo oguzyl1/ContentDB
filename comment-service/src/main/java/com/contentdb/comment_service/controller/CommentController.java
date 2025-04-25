@@ -50,10 +50,9 @@ public class CommentController {
     }
 
     @DeleteMapping("/delete/{commentId}")
-    public ResponseEntity<Void> deleteComment(@PathVariable(value = "commentId") String commentId,
-                                              @RequestHeader("X-User-Id") String userId) {
-        commentService.deleteComment(commentId, userId);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<CommentDto> deleteComment(@PathVariable(value = "commentId") String commentId,
+                                                    @RequestHeader("X-User-Id") String userId) {
+        return ResponseEntity.ok(commentService.deleteComment(commentId, userId));
     }
 
     @GetMapping("/get-replies/{commentId}")

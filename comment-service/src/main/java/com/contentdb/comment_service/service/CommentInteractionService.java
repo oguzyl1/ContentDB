@@ -8,6 +8,8 @@ import com.contentdb.comment_service.repository.CommentRepository;
 import com.contentdb.comment_service.repository.UserCommentInteractionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,13 +26,22 @@ public class CommentInteractionService {
         this.commentRepository = commentRepository;
     }
 
+    private static String key(String commentId, String userId) {
+        return commentId + "-" + userId;
+    }
+
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "comment-interactions",
+                    key = "T(this).key(#commentId,#userId)")
+    })
     public void toggleLike(String commentId, String userId) {
         logger.info("{} id'li kullanıcı {} id'li yorumu beğeniyor/kaldırıyor", userId, commentId);
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new CommentNotFoundException("Yorum bulunamadı."));
 
-        Optional<UserCommentInteraction> existingInteraction = interactionRepository.findByUserIdAndComment(userId, comment);
+        Optional<UserCommentInteraction> existingInteraction =
+                interactionRepository.findByCommentIdAndUserId(commentId, userId);
 
         if (existingInteraction.isPresent() && existingInteraction.get().getInteractionType() == InteractionType.LIKE) {
             interactionRepository.delete(existingInteraction.get());
@@ -53,12 +64,17 @@ public class CommentInteractionService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "comment-interactions",
+                    key = "T(this).key(#commentId,#userId)")
+    })
     public void toggleDislike(String commentId, String userId) {
         logger.info("{} id'li kullanıcı {} id'li yorumu dislike ediyor/kaldırıyor", userId, commentId);
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new CommentNotFoundException("Yorum bulunamadı."));
 
-        Optional<UserCommentInteraction> existingInteraction = interactionRepository.findByUserIdAndComment(userId, comment);
+        Optional<UserCommentInteraction> existingInteraction =
+                interactionRepository.findByCommentIdAndUserId(commentId, userId);
 
         if (existingInteraction.isPresent() && existingInteraction.get().getInteractionType() == InteractionType.DISLIKE) {
             interactionRepository.delete(existingInteraction.get());
@@ -79,4 +95,5 @@ public class CommentInteractionService {
         }
         commentRepository.save(comment);
     }
+
 }

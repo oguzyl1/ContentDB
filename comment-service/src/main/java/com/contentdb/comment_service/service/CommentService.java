@@ -8,6 +8,8 @@ import com.contentdb.comment_service.repository.CommentRepository;
 import com.contentdb.comment_service.request.CommentRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +34,7 @@ public class CommentService {
 
 
     @Transactional
+    @CacheEvict(value = "comments", key = "#contentId")
     public CommentDto addComment(CommentRequest request, String contentId, String userId) {
 
         logger.info("{} id'li Kullanıcı {} içeriğine yorum ekliyor", userId, contentId);
@@ -44,6 +47,7 @@ public class CommentService {
     }
 
     @Transactional
+    @CacheEvict(value = "comments", key = "#result.contentId")
     public CommentDto replyToComment(CommentRequest request, String parentCommentId, String userId) {
         logger.info("{} id'li kullanıcı {} id'li yoruma yanıt veriyor", userId, parentCommentId);
         validator.userIdControl(userId);
@@ -58,6 +62,7 @@ public class CommentService {
 
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "comments", key = "#contentId")
     public Map<String, Object> getCommentsWithReplies(String contentId) {
 
         List<Comment> allComments = commentRepository.findByContentIdAndIsDeletedFalse(contentId);
@@ -93,6 +98,7 @@ public class CommentService {
 
 
     @Transactional
+    @CacheEvict(value = "comments", key = "#result.contentId")
     public CommentDto updateComment(CommentRequest request, String commentId, String userId) {
 
         logger.info("{} id'li kullanıcı , {} id'li yorumunu güncelliyor ", userId, commentId);
@@ -119,16 +125,15 @@ public class CommentService {
 
 
     @Transactional
-    public void deleteComment(String commentId, String userId) {
+    @CacheEvict(value = "comments", key = "#result.contentId")
+    public CommentDto deleteComment(String commentId, String userId) {
 
         logger.info("{} id'li kullanıcı, {} id'li yorumunu siliyor", userId, commentId);
         validator.userIdControl(userId);
         validator.commentIdControl(commentId);
 
-
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new CommentNotFoundException("Yorum bulunamadı."));
-
 
         if (!comment.getUserId().equals(userId)) {
             throw new UserIdNotSameException("Bu yorumu silmeye yetkiniz yok.");
@@ -141,19 +146,16 @@ public class CommentService {
 
         if (comment.getParentComment() == null) {
             List<Comment> replies = commentRepository.findByParentCommentId(commentId);
-
-            for (Comment reply : replies) {
-                reply.setIsDeleted(true);
-                logger.info("Yanıt yorum {} silindi olarak işaretlendi.", reply.getId());
-            }
-
+            replies.forEach(r -> r.setIsDeleted(true));
             commentRepository.saveAll(replies);
         }
 
+        return CommentDto.convertToCommentDto(comment);
     }
 
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "replies", key = "#parentCommentId")
     public List<CommentDto> getRepliesOfComment(String parentCommentId) {
         validator.parenCommentControl(parentCommentId);
 
@@ -166,6 +168,7 @@ public class CommentService {
 
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "user-comments", key = "#userId")
     public List<CommentDto> getUserComments(String userId) {
         validator.userIdControl(userId);
         List<Comment> comments = commentRepository.findByUserIdAndIsDeletedFalse(userId);

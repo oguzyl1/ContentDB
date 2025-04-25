@@ -10,6 +10,8 @@ import com.contentdb.library_service.request.CreateLibraryRequest;
 import com.contentdb.library_service.request.UpdateLibraryRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -17,6 +19,7 @@ import org.springframework.validation.annotation.Validated;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Validated
 @Service
@@ -33,6 +36,7 @@ public class UserListService {
 
 
     @Transactional
+    @CacheEvict(value = "user-lists", key = "#userId")
     public UserListDto createList(CreateLibraryRequest request, String userId) {
 
         logger.info("Liste Oluşturuluyor.");
@@ -61,6 +65,7 @@ public class UserListService {
 
 
     @Transactional
+    @CacheEvict(value = "user-lists", key = "#userId")
     public void setListVisibility(String listName, boolean isPublic, String userId) {
 
         logger.info("Listenin görünürlüğü değiştiriliyor: {} {}", listName, isPublic);
@@ -79,6 +84,7 @@ public class UserListService {
 
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "public-lists", key = "#userId")
     public List<UserListDto> getPublicLists(String userId) {
 
         logger.info("Kullanıcının public olan listleri getiriliyor.");
@@ -93,11 +99,12 @@ public class UserListService {
         logger.info("Kullanıcının public listeleri getirildi.");
         return lists.stream()
                 .map(UserListDto::convertToLibraryDto)
-                .toList();
+                .collect(Collectors.toList());
     }
 
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "user-lists", key = "#userId")
     public List<UserListDto> getAllLists(String userId) {
 
         logger.info("Kullanıcının tüm listeleri getiriliyor.");
@@ -112,7 +119,7 @@ public class UserListService {
         logger.info("Kullanıcının listeleri getirildi.");
         return lists.stream()
                 .map(UserListDto::convertToLibraryDto)
-                .toList();
+                .collect(Collectors.toList());
     }
 
 
@@ -131,6 +138,7 @@ public class UserListService {
 
 
     @Transactional
+    @CacheEvict(value = "user-lists", key = "#userId")
     public UserListDto updateList(String current, UpdateLibraryRequest request, String userId) {
 
         logger.info("Kullanıcı listesini güncelliyor: {}", current);
@@ -163,6 +171,7 @@ public class UserListService {
 
 
     @Transactional
+    @CacheEvict(value = "user-lists", key = "#userId")
     public void deleteList(String listName, String userId) {
 
         logger.info("Kullanıcının listesi siliniyor: {}", listName);
@@ -179,6 +188,7 @@ public class UserListService {
 
 
     @Transactional
+    @CacheEvict(value = "popular-lists", allEntries = true)
     public void increaseListPopularity(String listName) {
         logger.info("Listenin popülerliği artırılıyor: {}", listName);
 
@@ -190,13 +200,14 @@ public class UserListService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "popular-lists")
     public List<UserListDto> getMostPopularLists() {
         logger.info("En popüler listeler getiriliyor.");
 
         List<UserList> lists = userListRepository.findTop10ByIsPublicTrueOrderByPopularityDesc();
         return lists.stream()
                 .map(UserListDto::convertToLibraryDto)
-                .toList();
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -213,6 +224,7 @@ public class UserListService {
     }
 
     @Transactional
+    @CacheEvict(value = "user-list-contents", key = "#userId + '-' + #listName")
     public void increaseContentCount(String listName, String userId) {
         logger.info("Listenin içerik sayısı artırılıyor: {}", listName);
 
@@ -227,6 +239,7 @@ public class UserListService {
     }
 
     @Transactional
+    @CacheEvict(value = "user-list-contents", key = "#userId + '-' + #listName")
     public void decreaseContentCount(String listName, String userId) {
         logger.info("Listenin içerik sayısı azaltılıyor: {}", listName);
 

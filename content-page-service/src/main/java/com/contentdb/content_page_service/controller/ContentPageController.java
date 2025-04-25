@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/page/")
+@RequestMapping("/api/page")
 public class ContentPageController {
 
     private final ContentPageService contentPageService;
@@ -17,10 +17,12 @@ public class ContentPageController {
         this.contentPageService = contentPageService;
     }
 
-    @GetMapping("/{contentId}")
-    public ResponseEntity<Object> getPage(@PathVariable String contentId) {
-        return ResponseEntity.ok(contentPageService.getContentPage(contentId));
+    @GetMapping("/{mediaType}/{contentId}")
+    public ResponseEntity<Object> getPage(
+            @PathVariable String mediaType,
+            @PathVariable String contentId) {
+
+        Object page = contentPageService.getContentPage(contentId, mediaType);
+        return ResponseEntity.ok(page);
     }
-
-
 }

@@ -10,4 +10,5 @@ public interface UserCommentInteractionRepository extends JpaRepository<UserComm
 
     Optional<UserCommentInteraction> findByUserIdAndComment(String userId, Comment comment);
 
+    Optional<UserCommentInteraction> findByCommentIdAndUserId(String commentId, String userId);
 }

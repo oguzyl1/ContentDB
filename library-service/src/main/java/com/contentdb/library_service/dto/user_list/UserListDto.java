@@ -1,6 +1,8 @@
 package com.contentdb.library_service.dto.user_list;
 
 import com.contentdb.library_service.model.UserList;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 import java.time.LocalDateTime;
 
@@ -13,7 +15,10 @@ public class UserListDto {
     private String description;
     private LocalDateTime createdAt = LocalDateTime.now();
     private LocalDateTime updatedAt = LocalDateTime.now();
+
+    @JsonProperty("public")
     private boolean isPublic;
+
     private Integer popularity;
     private Integer contentCount;
 
@@ -31,7 +36,10 @@ public class UserListDto {
         );
     }
 
-    public UserListDto(String id, String name, String description, LocalDateTime createdAt, LocalDateTime updatedAt, String userId, boolean isPublic, Integer popularity,Integer contentCount) {
+    public UserListDto() {
+    }
+
+    public UserListDto(String id, String name, String description, LocalDateTime createdAt, LocalDateTime updatedAt, String userId, boolean isPublic, Integer popularity, Integer contentCount) {
         this.id = id;
         this.name = name;
         this.userId = userId;
@@ -75,6 +83,7 @@ public class UserListDto {
         return updatedAt;
     }
 
+    @JsonProperty("public")
     public boolean isPublic() {
         return isPublic;
     }

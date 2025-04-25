@@ -1,6 +1,7 @@
 package com.contentdb.library_service.controller;
 
 import com.contentdb.library_service.client.dto.general.TmdbMultiSearchResponse;
+import com.contentdb.library_service.dto.user_list_content.ListCardDto;
 import com.contentdb.library_service.dto.user_list_content.UserListContentDto;
 import com.contentdb.library_service.dto.user_list_content.UserListContentIdDto;
 import com.contentdb.library_service.service.UserListContentService;
@@ -29,12 +30,13 @@ public class UserListContentController {
         return ResponseEntity.ok(userListContentService.search(query));
     }
 
-    @PostMapping("/{listName}/content")
+    @PostMapping("/{listName}/contents")
     public ResponseEntity<UserListContentDto> addContent(@PathVariable String listName,
                                                          @RequestParam String contentId,
+                                                         @RequestParam String mediaType,
                                                          @RequestHeader("X-User-Id") String userId) {
         logger.info("PUT /add - Kütüphaneye : {} , içerik ekleniyor: {} , kullanıcı: {}", contentId, listName, userId);
-        return ResponseEntity.ok(userListContentService.addContentToUserList(contentId, listName, userId));
+        return ResponseEntity.ok(userListContentService.addContentToUserList(contentId, mediaType, listName, userId));
     }
 
     @DeleteMapping("/delete/{listName}/{contentId}")
@@ -54,15 +56,17 @@ public class UserListContentController {
         return ResponseEntity.ok(userListContentService.getAllContentsFromOneUserList(listName, userId));
     }
 
-    @GetMapping("/get/card/{contentId}")
-    public ResponseEntity<Object> getContentCard(@PathVariable String contentId) {
+    @GetMapping("/get/card/{contentId}/{mediaType}")
+    public ResponseEntity<Object> getContentCard(@PathVariable String contentId,
+                                                 @PathVariable String mediaType
+    ) {
         logger.info("GET /get/card/{} - İçeriğin şeması getiriliyor", contentId);
-        return ResponseEntity.ok(userListContentService.getContentCard(contentId));
+        return ResponseEntity.ok(userListContentService.getContentCard(contentId, mediaType));
     }
 
     @GetMapping("/get/cards/{listName}")
-    public ResponseEntity<List<Object>> getContentCardList(@PathVariable String listName,
-                                                           @RequestHeader("X-User-Id") String userId) {
+    public ResponseEntity<List<ListCardDto>> getContentCardList(@PathVariable String listName,
+                                                                @RequestHeader("X-User-Id") String userId) {
         logger.info("GET /get/card/{} - Kullanıcının listesindeki tüm içeriklerin şeması getiriliyor", listName);
         return ResponseEntity.ok(userListContentService.getContentCardsFromUserList(listName, userId));
     }

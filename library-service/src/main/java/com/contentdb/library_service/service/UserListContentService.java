@@ -18,7 +18,9 @@ import com.contentdb.library_service.repository.UserListContentRepository;
 import com.contentdb.library_service.repository.UserListRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -61,18 +63,19 @@ public class UserListContentService {
 
 
     @Transactional
-    public UserListContentDto addContentToUserList(String contentId, String listName, String userId) {
+    @Caching(evict = {
+            @CacheEvict(value = "user-list-content-ids", key = "#userId + '::' + #listName"),
+            @CacheEvict(value = "user-list-content-cards", key = "#userId + '::' + #listName")
+    })
+    public UserListContentDto addContentToUserList(String contentId, String mediaType, String listName, String userId) {
         try {
+
             UserList userList = validator.getUserList(listName, userId);
 
             if (userListContentRepository.existsByUserListAndContentId(userList, contentId)) {
                 throw new ContentAlreadyExistsException("Bu içerik zaten listenizde mevcut");
             }
 
-            String type = validator.getMediaTypeByContentId(contentId);
-            if (type.isEmpty()) {
-                throw new RuntimeException("Medya türü belirlenemedi.");
-            }
 
             Integer currentCount = userListContentRepository.countByUserList(userList);
             Integer newOrderNumber = (currentCount != null ? currentCount : 0) + 1;
@@ -80,7 +83,7 @@ public class UserListContentService {
             UserListContent listContent = UserListContent.builder(userList, contentId)
                     .orderNumber(newOrderNumber)
                     .createdBy(userId)
-                    .mediaType(type)
+                    .mediaType(mediaType)
                     .build();
 
             UserListContent savedList = userListContentRepository.save(listContent);
@@ -103,6 +106,11 @@ public class UserListContentService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "user-list-content-ids", key = "#userId + '::' + #listName"),
+            @CacheEvict(value = "user-list-content-cards", key = "#userId + '::' + #listName"),
+            @CacheEvict(value = "content-cards", key = "#contentId")
+    })
     public void deleteContentFromUserList(String contentId, String listName, String userId) {
 
         UserList userList = validator.getUserList(listName, userId);
@@ -126,6 +134,7 @@ public class UserListContentService {
 
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "user-list-content-ids", key = "#userId + '::' + #listName")
     public UserListContentIdDto getAllContentsFromOneUserList(String listName, String userId) {
 
         UserList userList = validator.getUserList(listName, userId);
@@ -141,6 +150,7 @@ public class UserListContentService {
 
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "content-cards", key = "'tv-' + #tvId")
     public ListCardDto getTvCard(String tvId) {
         ResponseEntity<TvDetailResponse> response = contentServiceClient.getTvDetail(tvId);
 
@@ -162,6 +172,7 @@ public class UserListContentService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "content-cards", key = "'movie-' + #movieId")
     public ListCardDto getMovieCard(String movieId) {
         ResponseEntity<MovieDetailResponse> response = contentServiceClient.getMovieDetail(movieId);
         if (!response.getStatusCode().is2xxSuccessful()) {
@@ -181,37 +192,55 @@ public class UserListContentService {
     }
 
     @Transactional(readOnly = true)
-    public Object getContentCard(String contentId) {
-        String type = validator.getMediaTypeByContentId(contentId);
+    public ListCardDto getContentCard(String contentId, String mediaType) {
 
-        if (type.equals("movie")) {
+        if ("movie".equals(mediaType)) {
             return getMovieCard(contentId);
         }
-        if (type.equals("tv")) {
+        if ("tv".equals(mediaType)) {
             return getTvCard(contentId);
         }
         throw new ContentNotFoundException("Aranan içerik bulunamadı.");
     }
 
     @Transactional(readOnly = true)
-    public List<Object> getContentCardsFromUserList(String listName, String userId) {
-        UserListContentIdDto dto = getAllContentsFromOneUserList(listName, userId);
-        List<String> contentIds = dto.getContentIds();
+    @Cacheable(value = "user-list-content-cards", key = "#userId + '::' + #listName")
+    public List<ListCardDto> getContentCardsFromUserList(String listName, String userId) {
 
-        return contentIds.stream()
-                .map(
-                        contentId -> {
+        UserList userList = validator.getUserList(listName, userId);
+        List<UserListContent> items = userListContentRepository.findByUserListId(userList.getId());
 
-                            try {
-                                return getContentCard(contentId);
-                            } catch (ContentNotFoundException e) {
-                                return null;
-                            }
-                        }
 
-                )
+        return items.stream()
+                .map(item -> {
+                    try {
+                        return getContentCard(item.getContentId(), item.getMediaType());
+                    } catch (ContentNotFoundException e) {
+                        return null;
+                    }
+                })
                 .filter(Objects::nonNull)
-                .toList();
+                .collect(Collectors.toList());
     }
 
-}
+//
+//        UserListContentIdDto dto = getAllContentsFromOneUserList(listName, userId);
+//        List<String> contentIds = dto.getContentIds();
+//
+//        return contentIds.stream()
+//                .map(
+//                        contentId -> {
+//
+//                            try {
+//                                return getContentCard(contentId);
+//                            } catch (ContentNotFoundException e) {
+//                                return null;
+//                            }
+//                        }
+//
+//                )
+//                .filter(Objects::nonNull)
+//                .toList();
+    }
+
+

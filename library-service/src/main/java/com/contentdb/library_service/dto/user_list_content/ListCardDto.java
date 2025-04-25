@@ -1,5 +1,8 @@
 package com.contentdb.library_service.dto.user_list_content;
 
+
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+
 public class ListCardDto {
     private String id;
     private String name;
